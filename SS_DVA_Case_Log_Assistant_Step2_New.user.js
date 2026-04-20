@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         SS Case Log Auto-Filler v4.7
+// @name         SS Case Log Auto-Filler v4.8
 // @namespace    http://tampermonkey.net/
-// @version      4.7
-// @description  v4.7: Post-fill reminder now shows actual Due Date value; adds optimization category reminder when type is OPT.
+// @version      4.8
+// @description  v4.8: Fix Brand Name + Primary Goal missing from PARSE_MAP & DOM_MAP. Post-fill reminder shows actual Due Date value; adds optimization category reminder.
 // @match        https://advertising.amazon.com/case-manager*
 // @match        https://advertising.amazon.co.jp/case-manager*
 // @match        https://advertising.amazon.co.uk/case-manager*
@@ -16,6 +16,7 @@
 
   // ============================================================
   // 🗺️ PARSE MAP (longest pattern first)
+  // ★ v4.8: Added "Brand Name" and standalone "Primary Goal"
   // ============================================================
   const PARSE_MAP = [
     { pattern: "Assignment creation reason", key: "assignmentCreationReason" },
@@ -28,6 +29,7 @@
     { pattern: "Assignment status",          key: "assignmentstatus" },
     { pattern: "Optimization type",          key: "optimizationType" },
     { pattern: "Primary Goal KPI",           key: "primaryGoalKPI" },
+    { pattern: "Primary Goal",              key: "primaryGoalConsideration" },  // ★ v4.8 FIX: Must be AFTER "Primary Goal KPI"
     { pattern: "Case Description",           key: "caseDescription" },
     { pattern: "Advertiser Type",            key: "advertiserType" },
     { pattern: "Account Vertical",           key: "accountVertical" },
@@ -36,6 +38,7 @@
     { pattern: "Submitting team",            key: "submittingTeam" },
     { pattern: "Advertiser ID",              key: "advertiserId" },
     { pattern: "Account Name",              key: "accountName" },
+    { pattern: "Brand Name",                key: "brandName" },               // ★ v4.8 FIX: NEW
     { pattern: "Requested by",              key: "requestedBy" },
     { pattern: "Requester by",              key: "requestedBy" },
     { pattern: "Submitted by",              key: "submittedBy" },
@@ -52,11 +55,13 @@
 
   // ============================================================
   // 🎯 DOM MAP
+  // ★ v4.8: Added brandName entry
   // ============================================================
   const DOM_MAP = [
     { key: "assignee",                 selector: '[data-testid="assignee-field"]',                    altSelectors: ['[name="assignee"]', '#assignee'], type: "text" },
     { key: "accountVertical",          selector: '[data-testid="accountVertical-field"]',              altSelectors: [], type: "text" },
     { key: "accountName",              selector: '[data-testid="accountName-field"]',                  altSelectors: ['[name="accountName"]'], type: "text" },
+    { key: "brandName",                selector: '[data-testid="brandName-field"]',                    altSelectors: ['[data-testid="brand-name-field"]', '[data-testid="brand.name-field"]', '[name="brandName"]', '[id*="brandName"]', '[id*="brand-name"]'], type: "text" },  // ★ v4.8 FIX: NEW
     { key: "rodeoCfId",                selector: '[data-testid="rodeoAdvertiserCfId-field"]',          altSelectors: ['[name="rodeoAdvertiserCfId"]'], type: "text" },
     { key: "advertiserId",             selector: '[data-testid="advertiser.id-field"]',                altSelectors: ['[name="advertiserId"]'], type: "text" },
     { key: "entityId",                 selector: '[data-testid="entityId-field"]',                     altSelectors: ['[name="entityId"]'], type: "text" },
@@ -135,7 +140,7 @@
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:16px;">🛠</span>
           <strong style="font-size:14px;">SS Case Filler</strong>
-          <span style="font-size:10px;color:#888;background:#333;padding:1px 6px;border-radius:8px;">v4.7</span>
+          <span style="font-size:10px;color:#888;background:#333;padding:1px 6px;border-radius:8px;">v4.8</span>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
           <span id="ss-btn-minimize" title="Minimize to icon" style="cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;background:#333;">━</span>
@@ -152,6 +157,7 @@ Supports formats:
   Assignee zhxz
   Assignee: zhxz
   Case Description: some text
+  Brand Name: ODODOS
   Requested by: John
   Assignment status: In Progress" style="
             width:100%; height:170px; background:#1a2332; color:#e0e0e0;
@@ -319,7 +325,7 @@ Supports formats:
 
   function cleanValue(val) {
     if (!val) return '';
-    val = val.replace(/\s*\((?:Order Level ID|14 business days[^)]*|mandatory|keep it blank|Proactive support[^)]*)\)\s*/gi, '').trim();
+    val = val.replace(/\s*\((?:Order Level ID|Rodeo Account Level ID|14 business days[^)]*|mandatory|keep it blank|Proactive support[^)]*|= Case creation date|Today \\+ 13 calendar days)\)\s*/gi, '').trim();
     const lower = val.toLowerCase();
     for (const ig of IGNORE_VALUES) {
       if (lower.includes(ig.toLowerCase())) return '';
@@ -332,14 +338,14 @@ Supports formats:
     const el = document.getElementById('ss-preview');
     const count = Object.keys(parsedData).length;
     const shownKeys = new Set();
-    let html = `<div style="color:#69f0ae;margin-bottom:4px;"><strong>✅ ${count} fields parsed</strong></div>`;
+    let html = \`<div style="color:#69f0ae;margin-bottom:4px;"><strong>✅ \${count} fields parsed</strong></div>\`;
     for (const { pattern, key } of PARSE_MAP) {
       if (shownKeys.has(key)) continue;
       shownKeys.add(key);
       const v = parsedData[key];
       html += v
-        ? `<div><span style="color:#888;">${pattern}:</span> <span style="color:#69f0ae;">${v}</span></div>`
-        : `<div><span style="color:#444;">${pattern}: (skip)</span></div>`;
+        ? \`<div><span style="color:#888;">\${pattern}:</span> <span style="color:#69f0ae;">\${v}</span></div>\`
+        : \`<div><span style="color:#444;">\${pattern}: (skip)</span></div>\`;
     }
     el.innerHTML = html;
     document.getElementById('ss-paste-section').style.display = 'none';
@@ -359,7 +365,7 @@ Supports formats:
 
   function setProgress(n) {
     for (let i = 0; i <= 2; i++) {
-      const el = document.getElementById(`ss-p${i}`);
+      const el = document.getElementById(\`ss-p\${i}\`);
       el.style.background = i < n ? '#00a651' : i === n ? '#ff9900' : '#1a2332';
       el.style.color = i === n ? '#000' : '#fff';
     }
@@ -382,7 +388,7 @@ Supports formats:
       for (const alt of field.altSelectors) {
         try { el = document.querySelector(alt); } catch (e) { continue; }
         if (el) {
-          log(`  ↪ <span style="color:#4fc3f7;">${field.key}</span>: found via alt selector`);
+          log(\`  ↪ <span style="color:#4fc3f7;">\${field.key}</span>: found via alt selector\`);
           return el;
         }
       }
@@ -397,7 +403,7 @@ Supports formats:
         if (parent) {
           el = parent.querySelector('input, textarea, select, button, [role="combobox"], [role="listbox"]');
           if (el) {
-            log(`  ↪ <span style="color:#4fc3f7;">${field.key}</span>: found via label search`);
+            log(\`  ↪ <span style="color:#4fc3f7;">\${field.key}</span>: found via label search\`);
             return el;
           }
         }
@@ -415,7 +421,7 @@ Supports formats:
             'button, select, [role="combobox"], [role="button"], [role="listbox"], [class*="trigger"], [class*="dropdown"], [class*="select"]'
           );
           if (trigger) {
-            log(`  ↪ <span style="color:#ff9900;">${field.key}</span>: found via nuclear fallback`);
+            log(\`  ↪ <span style="color:#ff9900;">\${field.key}</span>: found via nuclear fallback\`);
             return trigger;
           }
         }
@@ -471,7 +477,7 @@ Supports formats:
       el.dispatchEvent(new Event('blur', { bubbles: true }));
       return true;
     } catch (e) {
-      console.error(`[SS Filler] fillTextInput error:`, e);
+      console.error('[SS Filler] fillTextInput error:', e);
       return false;
     }
   }
@@ -528,7 +534,7 @@ Supports formats:
       document.body.click(); await delay(200);
       return false;
     } catch (e) {
-      console.error(`[SS Filler] fillDropdown error:`, e);
+      console.error('[SS Filler] fillDropdown error:', e);
       document.body.click();
       return false;
     }
@@ -616,7 +622,7 @@ Supports formats:
         }
       }
       if (!el) {
-        log(`❌ <span style="color:#ff6b6b">${f.key}</span>: element not found`);
+        log(\`❌ <span style="color:#ff6b6b">\${f.key}</span>: element not found\`);
         failedFields.push(f.key);
         failed++;
         continue;
@@ -628,53 +634,47 @@ Supports formats:
 
       if (ok) {
         const s = val.length > 30 ? val.substring(0, 30) + '...' : val;
-        log(`✅ <span style="color:#69f0ae">${f.key}</span> → "${s}"`);
+        log(\`✅ <span style="color:#69f0ae">\${f.key}</span> → "\${s}"\`);
         filled++;
       } else {
-        log(`⚠️ <span style="color:#ffd740">${f.key}</span>: fill failed`);
+        log(\`⚠️ <span style="color:#ffd740">\${f.key}</span>: fill failed\`);
         failedFields.push(f.key);
         failed++;
       }
     }
 
     log('─'.repeat(30));
-    log(`<strong>📊 ✅${filled} │ ❌${failed} │ ⏭${skipped}</strong>`);
+    log(\`<strong>📊 ✅\${filled} │ ❌\${failed} │ ⏭\${skipped}</strong>\`);
     if (failed) log('<em style="color:#ff9900;">💡 Failed fields → manual input</em>');
     showManualReminder(failedFields);
     setProgress(3);
   }
 
   // ============================================================
-  // ⚠️ POST-FILL MANUAL REMINDER — ✅ v4.7 UPDATED
+  // ⚠️ POST-FILL MANUAL REMINDER
   // ============================================================
   function showManualReminder(failedFields = []) {
-
-    // ── Build the "always manual" list ──
     const manualItems = [];
 
-    // 🔹 CHANGE 1: Show actual Due Date value if parsed
     const dueDateValue = parsedData.dueDate;
     if (dueDateValue) {
-      manualItems.push(`Due Date — <strong style="color:#ff6b6b;">${dueDateValue}</strong>`);
+      manualItems.push(\`Due Date — <strong style="color:#ff6b6b;">\${dueDateValue}</strong>\`);
     } else {
       manualItems.push('Due Date');
     }
 
-    // 🔹 CHANGE 2: If optimizationType contains "OPT", add category reminder
     const optType = (parsedData.optimizationType || '').trim().toUpperCase();
     if (optType === '' || optType.includes('OPT')) {
       manualItems.push('Update the optimization category. Tick the levers you have suggested.');
     }
 
-    // ── Add any fields that failed auto-fill ──
     for (const f of failedFields) {
       const readable = f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
-      manualItems.push(`<strong>${readable}</strong> (auto-fill failed)`);
+      manualItems.push(\`<strong>\${readable}</strong> (auto-fill failed)\`);
     }
 
-    // ── If nothing to remind, show success ──
     if (manualItems.length === 0) {
-      log(`
+      log(\`
         <div style="
           margin-top:6px; padding:10px 12px;
           background:#00a651; color:#fff;
@@ -683,14 +683,13 @@ Supports formats:
           <strong>✅ All fields filled successfully!</strong><br>
           <span>👉 Please review and click <strong>Submit</strong>.</span>
         </div>
-      `);
+      \`);
       return;
     }
 
-    // ── Render the reminder box ──
-    const items = manualItems.map(item => `<li>${item}</li>`).join('');
+    const items = manualItems.map(item => \`<li>\${item}</li>\`).join('');
 
-    log(`
+    log(\`
       <div style="
         margin-top:6px; padding:10px 12px;
         background:#ff9900; color:#000;
@@ -700,11 +699,11 @@ Supports formats:
         <strong style="font-size:13px;">⚠️ MANUAL ACTION REQUIRED</strong><br>
         <span>Please manually fill/verify the following before submitting:</span>
         <ol style="margin:6px 0 4px 18px; padding:0;">
-          ${items}
+          \${items}
         </ol>
         <span>👉 After confirming all fields, click <strong>Submit</strong>.</span>
       </div>
-    `);
+    \`);
   }
 
   async function runFullFlow() {
