@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         SS Case Log Auto-Filler v4.8
+// @name         SS Case Log Auto-Filler v5.0
 // @namespace    http://tampermonkey.net/
-// @version      4.9
-// @description  v4.8: Fix Brand Name + Primary Goal missing from PARSE_MAP & DOM_MAP.
+// @version      5.0
+// @description  v5.0: Fixed all 4 dropdown fields, lever-to-category mapping, enhanced multiselect, React portal support, debug inspector.
 // @match        https://advertising.amazon.com/case-manager*
 // @match        https://advertising.amazon.co.jp/case-manager*
 // @match        https://advertising.amazon.co.uk/case-manager*
@@ -15,8 +15,7 @@
   'use strict';
 
   // ============================================================
-  // PARSE MAP (longest pattern first)
-  // v4.8: Added "Brand Name" and standalone "Primary Goal"
+  // PARSE MAP
   // ============================================================
   const PARSE_MAP = [
     { pattern: "Assignment creation reason", key: "assignmentCreationReason" },
@@ -55,7 +54,6 @@
 
   // ============================================================
   // DOM MAP
-  // v4.8: Added brandName entry
   // ============================================================
   const DOM_MAP = [
     { key: "assignee",                 selector: '[data-testid="assignee-field"]',                    altSelectors: ['[name="assignee"]', '#assignee'], type: "text" },
@@ -87,27 +85,205 @@
       type: "dropdown" },
     { key: "advertiserType",           selector: '[data-testid="advertiser.type-field"]',              altSelectors: [], type: "dropdown" },
     { key: "submittingTeam",           selector: '[data-testid="submittedByTeam-field"]',              altSelectors: [], type: "dropdown" },
-    { key: "optimizationType",         selector: '[data-testid="optimizationType-field"]',             altSelectors: [], type: "dropdown" },
-    { key: "optimizationDelivery",     selector: '[data-testid="optimizationDelivery-field"]',         altSelectors: [], type: "dropdown" },
-    { key: "optimizationMarketplace",  selector: '[data-testid="advertiser.marketplaceId-field"]',     altSelectors: [], type: "dropdown" },
-    { key: "optimizationCategories",   selector: '[data-testid="optimizationCategories-field"]',       altSelectors: [], type: "multiselect" },
+    { key: "optimizationType",
+      selector: '[data-testid="optimizationType-field"]',
+      altSelectors: [
+        '[data-testid="optimization-type-field"]',
+        '[data-testid="optimizationType"] button',
+        '[name="optimizationType"]',
+        '[id*="optimizationType"]',
+        '[id*="optimization-type"]',
+        '[aria-label*="Optimization Type"]',
+        '[aria-label*="optimization type"]'
+      ],
+      type: "dropdown" },
+    { key: "optimizationDelivery",
+      selector: '[data-testid="optimizationDelivery-field"]',
+      altSelectors: [
+        '[data-testid="optimization-delivery-field"]',
+        '[data-testid="optimizationDelivery"] button',
+        '[name="optimizationDelivery"]',
+        '[id*="optimizationDelivery"]',
+        '[id*="optimization-delivery"]',
+        '[aria-label*="Optimization Delivery"]',
+        '[aria-label*="optimization delivery"]'
+      ],
+      type: "dropdown" },
+    { key: "optimizationMarketplace",
+      selector: '[data-testid="advertiser.marketplaceId-field"]',
+      altSelectors: [
+        '[data-testid="optimizationMarketplace-field"]',
+        '[data-testid="optimization-marketplace-field"]',
+        '[data-testid="marketplaceId-field"]',
+        '[data-testid="marketplace-field"]',
+        '[name="optimizationMarketplace"]',
+        '[name="marketplaceId"]',
+        '[id*="optimizationMarketplace"]',
+        '[id*="marketplace"]',
+        '[aria-label*="Optimization Marketplace"]',
+        '[aria-label*="Marketplace"]'
+      ],
+      type: "dropdown" },
+    { key: "optimizationCategories",
+      selector: '[data-testid="optimizationCategories-field"]',
+      altSelectors: [
+        '[data-testid="optimization-categories-field"]',
+        '[data-testid="optimizationCategories"] button',
+        '[name="optimizationCategories"]',
+        '[id*="optimizationCategories"]',
+        '[id*="optimization-categories"]',
+        '[aria-label*="Optimization Categories"]',
+        '[aria-label*="optimization categories"]'
+      ],
+      type: "multiselect" },
   ];
 
+  // ============================================================
+  // LEVER TO CATEGORY REVERSE LOOKUP MAP
+  // ============================================================
+  const CATEGORY_LEVER_MAP = {
+    "Frequency Cap / Twitch - Frequency Cap": [
+      "Order Frequency Cap", "Line Item Frequency Cap",
+      "Order Frequency Group Campaign Association"
+    ],
+    "Auto-Optimization": [
+      "Order Automated Optimization"
+    ],
+    "Supply Source": [
+      "Line Item Supply Sources"
+    ],
+    "Bid Change": [
+      "Line Item Base Supply Bid", "Line Item Max Supply Bid",
+      "Line Item Base CPC", "Line Item Sold CPC", "Line Item Sold CPM",
+      "Line Item Bid Strategy", "Order Bid Strategy"
+    ],
+    "Budget Allocation \u2014 Order to Order": [
+      "Order Budget", "Order Budget Cap",
+      "Order Flight Budget Amount", "Order Flight Budget Rollover"
+    ],
+    "Domain Targeting": [
+      "Line Item Domain Targeting"
+    ],
+    "Start Date Change": [
+      "Order Start Date Time", "Line Item Start Date",
+      "Line Item Flight Start Date", "Order Flight Start Time"
+    ],
+    "Creative": [
+      "Line Item Creative Association", "Line Item Creative Status",
+      "Line Item Creative Approval Status", "Line Item Creative Sizes",
+      "Line Item Placement Position"
+    ],
+    "Twitch \u2014 Pacing Profile": [
+      "Line Item Pacing Profile", "Line Item Catchup Boost"
+    ],
+    "ASIN / Pixel Updates": [
+      "Order ASINs", "Order Conversion Pixels",
+      "Order Off Amazon Conversions"
+    ],
+    "Billing Updates": [
+      "Order Agency Fee", "Line Item 3P Fees",
+      "Line Item In Market Audience Fees",
+      "Line Item Automotive Audience Fees",
+      "Line Item Amazon Platform Fee"
+    ],
+    "Budget Allocation \u2014 Within DSP Order": [
+      "Line Item Budget", "Line Item Budget Cap",
+      "Line Item Budget Cap Amount", "Line Item Budget Type",
+      "Line Item Flight Budget", "Line Item Total Impressions",
+      "Line Item Projected Spend", "Line Item Budget Cap Date",
+      "Line Item Budget Cap Delivery Profile",
+      "Line Item Budget Cap Recurrence"
+    ],
+    "Day Part": [
+      "Line Item Targeting Daypart"
+    ],
+    "Keyword Targeting": [
+      "Line Item Keyword Targeting"
+    ],
+    "Targeting \u2014 Geo": [
+      "Line Item Targeting Location"
+    ],
+    "Book New Order or Line": [
+      "Line Item Name", "Line Item Type", "Line Item Status",
+      "Order Name", "Order Status", "Order Type"
+    ],
+    "Targeting \u2014 Segment": [
+      "Line Item Audience Targeting", "Line Item Contextual Targeting",
+      "Line Item Targeting String", "Line Item Content Rating",
+      "Line Item Content Genres", "Line Item Content Categories",
+      "Line Item Mobile OS Targeting", "Line Item Mobile App Targeting",
+      "Line Item Mobile Environment Targeting",
+      "Line Item Audience Targeting Match Type",
+      "Line Item Third Party Custom Segments",
+      "Line Item Third Party Custom Predicts",
+      "Line Item Third Party Standard Predicts",
+      "Line Item Third Party Authentic Attention",
+      "Line Item Third Party Context Control Avoidance",
+      "Line Item Third Party Context Control Targeting",
+      "Line Item Third Party Authentic Brand Safety",
+      "Line Item Third Party Custom Contextual",
+      "Line Item Site Targeting", "Line Item Site Language",
+      "Line Item Unified Language", "Line Item Product Categories"
+    ],
+    "Pacing Profile": [
+      "Line Item Pacing Profile", "Line Item Delivery Priority",
+      "Line Item Catchup Boost", "Line Item Optimization Type"
+    ],
+    "End Date Change": [
+      "Order End Date Time", "Line Item End Date",
+      "Line Item Flight End Date", "Order Flight End Time",
+      "Order Flight"
+    ],
+    "Other": [
+      "Line Item Amazon Viewability",
+      "Line Item Third Party Viewability MRC",
+      "Line Item Third Party IAS Viewability",
+      "Line Item Third Party DV Viewability",
+      "Order Goals", "Order General Goals",
+      "Line Item Deals", "Line Item Inventory Groups Deals",
+      "Order Deals"
+    ],
+    "Actualization": [
+      "Line Item Status", "Order Status"
+    ],
+    "Twitch \u2014 Book New Order": [
+      "Line Item Name", "Line Item Type"
+    ],
+    "Twitch \u2014 Targeting Update": [
+      "Line Item Audience Targeting", "Line Item Contextual Targeting"
+    ]
+  };
+
+  const LEVER_TO_CATEGORY = {};
+  Object.keys(CATEGORY_LEVER_MAP).forEach(function(category) {
+    var levers = CATEGORY_LEVER_MAP[category];
+    for (var i = 0; i < levers.length; i++) {
+      var leverKey = levers[i].toLowerCase().trim();
+      if (!LEVER_TO_CATEGORY[leverKey]) {
+        LEVER_TO_CATEGORY[leverKey] = [];
+      }
+      LEVER_TO_CATEGORY[leverKey].push(category);
+    }
+  });
+
+  // ============================================================
+  // CONFIG
+  // ============================================================
   const CFG = { FILL_DELAY: 400, DROPDOWN_WAIT: 800, STEP_DELAY: 1500 };
   let parsedData = {};
 
   // ============================================================
-  // UI — DRAGGABLE + MINIMIZABLE PANEL
+  // UI PANEL
   // ============================================================
   function createPanel() {
     const mini = document.createElement('div');
     mini.id = 'ss-mini';
-    mini.innerHTML = '🛠';
+    mini.textContent = 'SS';
     mini.title = 'Open SS Case Filler';
     Object.assign(mini.style, {
       position: 'fixed', top: '10px', right: '10px', zIndex: '99999',
       width: '42px', height: '42px', borderRadius: '50%',
-      background: '#ff9900', color: '#000', fontSize: '20px',
+      background: '#ff9900', color: '#000', fontSize: '14px', fontWeight: 'bold',
       display: 'none', cursor: 'pointer', userSelect: 'none',
       boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
       lineHeight: '42px', textAlign: 'center'
@@ -131,77 +307,81 @@
     });
     if (startLeft) panel.style.left = startLeft;
 
-    var panelHTML = '';
-    panelHTML += '<div id="ss-header" style="';
-    panelHTML += 'background:#1a1a2e; padding:10px 14px; cursor:move; user-select:none;';
-    panelHTML += 'display:flex; justify-content:space-between; align-items:center;';
-    panelHTML += 'border-bottom:1px solid #333; flex-shrink:0;';
-    panelHTML += '">';
-    panelHTML += '<div style="display:flex; align-items:center; gap:8px;">';
-    panelHTML += '<span style="font-size:16px;">🛠</span>';
-    panelHTML += '<strong style="font-size:14px;">SS Case Filler</strong>';
-    panelHTML += '<span style="font-size:10px;color:#888;background:#333;padding:1px 6px;border-radius:8px;">v4.8</span>';
-    panelHTML += '</div>';
-    panelHTML += '<div style="display:flex; gap:6px; align-items:center;">';
-    panelHTML += '<span id="ss-btn-minimize" title="Minimize to icon" style="cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;background:#333;">━</span>';
-    panelHTML += '<span id="ss-btn-resize" title="Collapse panel" style="cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;background:#333;">🔽</span>';
-    panelHTML += '</div>';
-    panelHTML += '</div>';
-    panelHTML += '<div id="ss-body" style="padding:14px; overflow-y:auto; flex:1;">';
-    panelHTML += '<div id="ss-paste-section">';
-    panelHTML += '<div style="background:#ff9900;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
-    panelHTML += '1️⃣ PASTE YOUR SS DVA CASE CREATION INFO</div>';
-    panelHTML += '<textarea id="ss-input" placeholder="Paste your case log here..." style="';
-    panelHTML += 'width:100%; height:170px; background:#1a2332; color:#e0e0e0;';
-    panelHTML += 'border:1px solid #444; border-radius:6px; padding:8px;';
-    panelHTML += 'font-family:monospace; font-size:11px; resize:vertical;';
-    panelHTML += 'box-sizing:border-box;"></textarea>';
-    panelHTML += '<button id="ss-parse-btn" style="';
-    panelHTML += 'width:100%; padding:10px; margin-top:6px; border:none;';
-    panelHTML += 'border-radius:6px; background:#ff9900; color:#000;';
-    panelHTML += 'font-weight:bold; cursor:pointer; font-size:13px;';
-    panelHTML += '">📋 Parse & Preview</button>';
-    panelHTML += '</div>';
-    panelHTML += '<div id="ss-preview-section" style="display:none; margin-top:8px;">';
-    panelHTML += '<div style="background:#00a651;color:#fff;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
-    panelHTML += '✅ PARSED DATA PREVIEW</div>';
-    panelHTML += '<div id="ss-preview" style="';
-    panelHTML += 'background:#1a2332; padding:8px; border-radius:6px;';
-    panelHTML += 'max-height:180px; overflow-y:auto; font-size:11px; line-height:1.8;';
-    panelHTML += '"></div>';
-    panelHTML += '<button id="ss-edit-btn" style="';
-    panelHTML += 'width:100%; padding:6px; margin-top:6px; border:1px solid #555;';
-    panelHTML += 'border-radius:6px; background:transparent; color:#aaa;';
-    panelHTML += 'cursor:pointer; font-size:11px;';
-    panelHTML += '">✏️ Back to Edit</button>';
-    panelHTML += '</div>';
-    panelHTML += '<div style="margin-top:10px;">';
-    panelHTML += '<div style="background:#4fc3f7;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
-    panelHTML += '2️⃣ CREATE NEW CASE</div>';
-    panelHTML += '<div style="display:flex;gap:4px;margin-bottom:8px;">';
-    panelHTML += '<div id="ss-p0" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">New Case</div>';
-    panelHTML += '<div id="ss-p1" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">Record Type</div>';
-    panelHTML += '<div id="ss-p2" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">Fill Form</div>';
-    panelHTML += '</div>';
-    panelHTML += '<button id="ss-create-btn" style="';
-    panelHTML += 'width:100%; padding:12px; border:none; border-radius:6px;';
-    panelHTML += 'background:#00a651; color:#fff; font-weight:bold;';
-    panelHTML += 'cursor:pointer; font-size:14px;';
-    panelHTML += '">🚀 Create New Case</button>';
-    panelHTML += '<button id="ss-fill-only-btn" style="';
-    panelHTML += 'width:100%; padding:7px; margin-top:6px; border:1px solid #00a651;';
-    panelHTML += 'border-radius:6px; background:transparent; color:#00a651;';
-    panelHTML += 'cursor:pointer; font-size:11px;';
-    panelHTML += '">✏️ Fill Only (form already open)</button>';
-    panelHTML += '</div>';
-    panelHTML += '<div id="ss-log" style="';
-    panelHTML += 'background:#1a2332; padding:8px; border-radius:6px;';
-    panelHTML += 'margin-top:10px; max-height:160px; overflow-y:auto;';
-    panelHTML += 'font-size:11px; line-height:1.6; display:none;';
-    panelHTML += '"></div>';
-    panelHTML += '</div>';
+    var h = '';
+    h += '<div id="ss-header" style="';
+    h += 'background:#1a1a2e; padding:10px 14px; cursor:move; user-select:none;';
+    h += 'display:flex; justify-content:space-between; align-items:center;';
+    h += 'border-bottom:1px solid #333; flex-shrink:0;';
+    h += '">';
+    h += '<div style="display:flex; align-items:center; gap:8px;">';
+    h += '<strong style="font-size:14px;">SS Case Filler</strong>';
+    h += '<span style="font-size:10px;color:#888;background:#333;padding:1px 6px;border-radius:8px;">v5.0</span>';
+    h += '</div>';
+    h += '<div style="display:flex; gap:6px; align-items:center;">';
+    h += '<span id="ss-btn-minimize" title="Minimize" style="cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;background:#333;">-</span>';
+    h += '<span id="ss-btn-resize" title="Collapse" style="cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;background:#333;">v</span>';
+    h += '</div>';
+    h += '</div>';
+    h += '<div id="ss-body" style="padding:14px; overflow-y:auto; flex:1;">';
+    h += '<div id="ss-paste-section">';
+    h += '<div style="background:#ff9900;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
+    h += '1. PASTE YOUR SS DVA CASE CREATION INFO</div>';
+    h += '<textarea id="ss-input" placeholder="Paste your case log here..." style="';
+    h += 'width:100%; height:170px; background:#1a2332; color:#e0e0e0;';
+    h += 'border:1px solid #444; border-radius:6px; padding:8px;';
+    h += 'font-family:monospace; font-size:11px; resize:vertical;';
+    h += 'box-sizing:border-box;"></textarea>';
+    h += '<button id="ss-parse-btn" style="';
+    h += 'width:100%; padding:10px; margin-top:6px; border:none;';
+    h += 'border-radius:6px; background:#ff9900; color:#000;';
+    h += 'font-weight:bold; cursor:pointer; font-size:13px;';
+    h += '">Parse & Preview</button>';
+    h += '</div>';
+    h += '<div id="ss-preview-section" style="display:none; margin-top:8px;">';
+    h += '<div style="background:#00a651;color:#fff;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
+    h += 'PARSED DATA PREVIEW</div>';
+    h += '<div id="ss-preview" style="';
+    h += 'background:#1a2332; padding:8px; border-radius:6px;';
+    h += 'max-height:180px; overflow-y:auto; font-size:11px; line-height:1.8;';
+    h += '"></div>';
+    h += '<button id="ss-edit-btn" style="';
+    h += 'width:100%; padding:6px; margin-top:6px; border:1px solid #555;';
+    h += 'border-radius:6px; background:transparent; color:#aaa;';
+    h += 'cursor:pointer; font-size:11px;';
+    h += '">Back to Edit</button>';
+    h += '</div>';
+    h += '<div style="margin-top:10px;">';
+    h += '<div style="background:#4fc3f7;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
+    h += '2. CREATE NEW CASE</div>';
+    h += '<div style="display:flex;gap:4px;margin-bottom:8px;">';
+    h += '<div id="ss-p0" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">New Case</div>';
+    h += '<div id="ss-p1" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">Record Type</div>';
+    h += '<div id="ss-p2" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">Fill Form</div>';
+    h += '</div>';
+    h += '<button id="ss-create-btn" style="';
+    h += 'width:100%; padding:12px; border:none; border-radius:6px;';
+    h += 'background:#00a651; color:#fff; font-weight:bold;';
+    h += 'cursor:pointer; font-size:14px;';
+    h += '">Create New Case</button>';
+    h += '<button id="ss-fill-only-btn" style="';
+    h += 'width:100%; padding:7px; margin-top:6px; border:1px solid #00a651;';
+    h += 'border-radius:6px; background:transparent; color:#00a651;';
+    h += 'cursor:pointer; font-size:11px;';
+    h += '">Fill Only (form already open)</button>';
+    h += '<button id="ss-inspect-btn" style="';
+    h += 'width:100%; padding:7px; margin-top:6px; border:1px solid #4fc3f7;';
+    h += 'border-radius:6px; background:transparent; color:#4fc3f7;';
+    h += 'cursor:pointer; font-size:11px;';
+    h += '">Inspect Form Fields (Debug)</button>';
+    h += '</div>';
+    h += '<div id="ss-log" style="';
+    h += 'background:#1a2332; padding:8px; border-radius:6px;';
+    h += 'margin-top:10px; max-height:160px; overflow-y:auto;';
+    h += 'font-size:11px; line-height:1.6; display:none;';
+    h += '"></div>';
+    h += '</div>';
 
-    panel.innerHTML = panelHTML;
+    panel.innerHTML = h;
     document.body.appendChild(panel);
 
     // DRAG: Main Panel
@@ -271,7 +451,7 @@
     document.getElementById('ss-btn-resize').addEventListener('click', function() {
       collapsed = !collapsed;
       document.getElementById('ss-body').style.display = collapsed ? 'none' : 'block';
-      document.getElementById('ss-btn-resize').textContent = collapsed ? '🔼' : '🔽';
+      document.getElementById('ss-btn-resize').textContent = collapsed ? '^' : 'v';
     });
 
     // BUTTONS
@@ -282,6 +462,39 @@
     });
     document.getElementById('ss-create-btn').addEventListener('click', runFullFlow);
     document.getElementById('ss-fill-only-btn').addEventListener('click', function() { stepFillForm(); });
+
+    // DEBUG INSPECTOR
+    document.getElementById('ss-inspect-btn').addEventListener('click', function() {
+      log('<strong>[INSPECT] Scanning form fields...</strong>', true);
+      var allTestIds = document.querySelectorAll('[data-testid]');
+      var keywords = ['optim', 'market', 'categ', 'deliv', 'type', 'brand', 'assign', 'status'];
+      var found = 0;
+      for (var i = 0; i < allTestIds.length; i++) {
+        var tid = allTestIds[i].getAttribute('data-testid');
+        var tidLower = tid.toLowerCase();
+        for (var k = 0; k < keywords.length; k++) {
+          if (tidLower.indexOf(keywords[k]) !== -1) {
+            var tag = allTestIds[i].tagName.toLowerCase();
+            var role = allTestIds[i].getAttribute('role') || '';
+            log('[FIELD] <span style="color:#4fc3f7;">' + tid + '</span> &lt;' + tag + '&gt;' + (role ? ' role="' + role + '"' : ''));
+            found++;
+            break;
+          }
+        }
+      }
+      if (!found) log('[WARN] No matching data-testid found.');
+      log('<br><strong>[LABELS]</strong>');
+      var labels = document.querySelectorAll('label, [class*="label"], [class*="Label"]');
+      for (var j = 0; j < labels.length; j++) {
+        var txt = labels[j].textContent.trim().toLowerCase();
+        for (var k2 = 0; k2 < keywords.length; k2++) {
+          if (txt.indexOf(keywords[k2]) !== -1) {
+            log('[LABEL] "' + labels[j].textContent.trim() + '"');
+            break;
+          }
+        }
+      }
+    });
 
     var saved = localStorage.getItem('ss-last-input');
     if (saved) document.getElementById('ss-input').value = saved;
@@ -302,7 +515,7 @@
       for (var pi = 0; pi < PARSE_MAP.length; pi++) {
         var pm = PARSE_MAP[pi];
         if (line.toLowerCase().startsWith(pm.pattern.toLowerCase())) {
-          var value = line.substring(pm.pattern.length).replace(/^[\s:：;；]+/, '').trim();
+          var value = line.substring(pm.pattern.length).replace(/^[\s:;\uFF1A\uFF1B]+/, '').trim();
           value = cleanValue(value);
           if (value) {
             if (!parsedData[pm.key]) parsedData[pm.key] = value;
@@ -329,14 +542,24 @@
     var el = document.getElementById('ss-preview');
     var count = Object.keys(parsedData).length;
     var shownKeys = {};
-    var html = '<div style="color:#69f0ae;margin-bottom:4px;"><strong>✅ ' + count + ' fields parsed</strong></div>';
+    var html = '<div style="color:#69f0ae;margin-bottom:4px;"><strong>[OK] ' + count + ' fields parsed</strong></div>';
     for (var i = 0; i < PARSE_MAP.length; i++) {
       var pm = PARSE_MAP[i];
       if (shownKeys[pm.key]) continue;
       shownKeys[pm.key] = true;
       var v = parsedData[pm.key];
       if (v) {
-        html += '<div><span style="color:#888;">' + pm.pattern + ':</span> <span style="color:#69f0ae;">' + v + '</span></div>';
+        if (pm.key === 'optimizationCategories') {
+          var rawVals = smartSplit(v);
+          var resolved = resolveToCategories(rawVals);
+          html += '<div><span style="color:#888;">' + pm.pattern + ':</span> <span style="color:#69f0ae;">' + v + '</span>';
+          if (resolved.length && resolved.join(', ') !== v) {
+            html += '<br><span style="color:#4fc3f7;margin-left:12px;">-> Mapped: ' + resolved.join(', ') + '</span>';
+          }
+          html += '</div>';
+        } else {
+          html += '<div><span style="color:#888;">' + pm.pattern + ':</span> <span style="color:#69f0ae;">' + v + '</span></div>';
+        }
       } else {
         html += '<div><span style="color:#444;">' + pm.pattern + ': (skip)</span></div>';
       }
@@ -372,6 +595,77 @@
   }
 
   // ============================================================
+  // CATEGORY RESOLUTION
+  // ============================================================
+  function smartSplit(raw) {
+    if (!raw) return [];
+    var delimiter = raw.indexOf(';') !== -1 ? ';' : ',';
+    var parts = raw.split(delimiter);
+    return parts.map(function(v) { return v.trim(); }).filter(function(v) { return v.length > 0; });
+  }
+
+  function resolveToCategories(rawValues) {
+    var categoryNames = Object.keys(CATEGORY_LEVER_MAP);
+    var resolved = {};
+
+    for (var i = 0; i < rawValues.length; i++) {
+      var val = rawValues[i].trim();
+      var valLower = val.toLowerCase();
+      var matched = false;
+
+      // Check 1: Already a category name
+      for (var c = 0; c < categoryNames.length; c++) {
+        if (categoryNames[c].toLowerCase() === valLower) {
+          resolved[categoryNames[c]] = true;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+
+      // Check 2: Exact lever lookup
+      if (LEVER_TO_CATEGORY[valLower]) {
+        var cats = LEVER_TO_CATEGORY[valLower];
+        for (var j = 0; j < cats.length; j++) {
+          resolved[cats[j]] = true;
+        }
+        matched = true;
+      }
+      if (matched) continue;
+
+      // Check 3: Fuzzy lever match
+      var leverKeys = Object.keys(LEVER_TO_CATEGORY);
+      for (var k = 0; k < leverKeys.length; k++) {
+        if (leverKeys[k].indexOf(valLower) !== -1 || valLower.indexOf(leverKeys[k]) !== -1) {
+          var fuzzyCats = LEVER_TO_CATEGORY[leverKeys[k]];
+          for (var m = 0; m < fuzzyCats.length; m++) {
+            resolved[fuzzyCats[m]] = true;
+          }
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+
+      // Check 4: Fuzzy category name match
+      for (var c2 = 0; c2 < categoryNames.length; c2++) {
+        var catLower = categoryNames[c2].toLowerCase();
+        if (catLower.indexOf(valLower) !== -1 || valLower.indexOf(catLower) !== -1) {
+          resolved[categoryNames[c2]] = true;
+          matched = true;
+          break;
+        }
+      }
+
+      if (!matched) {
+        resolved[val] = true;
+      }
+    }
+
+    return Object.keys(resolved);
+  }
+
+  // ============================================================
   // FIND ELEMENT
   // ============================================================
   function findElement(field) {
@@ -382,7 +676,7 @@
       for (var a = 0; a < field.altSelectors.length; a++) {
         try { el = document.querySelector(field.altSelectors[a]); } catch (e) { continue; }
         if (el) {
-          log('  ↪ <span style="color:#4fc3f7;">' + field.key + '</span>: found via alt selector');
+          log('  > <span style="color:#4fc3f7;">' + field.key + '</span>: found via alt selector');
           return el;
         }
       }
@@ -398,7 +692,7 @@
         if (parent) {
           el = parent.querySelector('input, textarea, select, button, [role="combobox"], [role="listbox"]');
           if (el) {
-            log('  ↪ <span style="color:#4fc3f7;">' + field.key + '</span>: found via label search');
+            log('  > <span style="color:#4fc3f7;">' + field.key + '</span>: found via label search');
             return el;
           }
         }
@@ -417,7 +711,7 @@
             'button, select, [role="combobox"], [role="button"], [role="listbox"], [class*="trigger"], [class*="dropdown"], [class*="select"]'
           );
           if (trigger) {
-            log('  ↪ <span style="color:#ff9900;">' + field.key + '</span>: found via nuclear fallback');
+            log('  > <span style="color:#ff9900;">' + field.key + '</span>: found via fallback');
             return trigger;
           }
         }
@@ -480,79 +774,111 @@
   }
 
   // ============================================================
+  // DROPDOWN HELPERS
+  // ============================================================
+  async function openDropdownMenu(clickTarget) {
+    clickTarget.click();
+    await delay(CFG.DROPDOWN_WAIT);
+    var opts = collectDropdownOptions();
+    if (opts.length > 0) return opts;
+
+    clickTarget.focus();
+    clickTarget.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowDown', code: 'ArrowDown', bubbles: true
+    }));
+    await delay(CFG.DROPDOWN_WAIT);
+    opts = collectDropdownOptions();
+    if (opts.length > 0) return opts;
+
+    clickTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await delay(150);
+    clickTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await delay(CFG.DROPDOWN_WAIT);
+    return collectDropdownOptions();
+  }
+
+  function collectDropdownOptions() {
+    var sels = [
+      '[role="option"]', '[role="menuitem"]', '[role="menuitemradio"]',
+      '[role="menuitemcheckbox"]',
+      '[class*="option"]:not([class*="option-group"])',
+      '[class*="menu-item"]', '[class*="MenuItem"]',
+      '[class*="dropdown"] li', '[class*="select"] li',
+      '[class*="listbox"] li', '[class*="Dropdown"] li',
+      'ul[role="listbox"] > li', '[data-testid*="option"]'
+    ];
+    var seen = new Set();
+    var allOpts = [];
+    for (var s = 0; s < sels.length; s++) {
+      var opts = document.querySelectorAll(sels[s]);
+      for (var o = 0; o < opts.length; o++) {
+        if (seen.has(opts[o])) continue;
+        seen.add(opts[o]);
+        var r = opts[o].getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) allOpts.push(opts[o]);
+      }
+    }
+    return allOpts;
+  }
+
+  function findDropdownMatch(allOpts, lv) {
+    for (var i = 0; i < allOpts.length; i++) {
+      if (allOpts[i].textContent.trim().toLowerCase() === lv) return allOpts[i];
+    }
+    for (var i2 = 0; i2 < allOpts.length; i2++) {
+      if (allOpts[i2].textContent.trim().toLowerCase().startsWith(lv)) return allOpts[i2];
+    }
+    for (var i3 = 0; i3 < allOpts.length; i3++) {
+      if (allOpts[i3].textContent.trim().toLowerCase().indexOf(lv) !== -1) return allOpts[i3];
+    }
+    return null;
+  }
+
+  // ============================================================
   // FILL DROPDOWN
   // ============================================================
   async function fillDropdown(buttonEl, value) {
     try {
       var clickTarget = buttonEl;
       if (buttonEl.tagName !== 'BUTTON' && buttonEl.tagName !== 'SELECT') {
-        var inner = buttonEl.querySelector('button, [role="combobox"], [role="button"], [class*="trigger"], [class*="select"]');
+        var inner = buttonEl.querySelector(
+          'button, [role="combobox"], [role="button"], [class*="trigger"], [class*="select"], [class*="dropdown"]'
+        );
         if (inner) clickTarget = inner;
       }
+
       clickTarget.scrollIntoView({ block: 'center' });
       await delay(200);
-      clickTarget.click();
-      await delay(CFG.DROPDOWN_WAIT);
 
-      var sels = [
-        '[role="option"]', '[role="menuitem"]', '[class*="option"]',
-        '[class*="menu-item"]', '[class*="dropdown"] li', '[class*="select"] li',
-        '[class*="listbox"] li'
-      ];
-      var allOpts = [];
-      for (var s = 0; s < sels.length; s++) {
-        var opts = document.querySelectorAll(sels[s]);
-        for (var o = 0; o < opts.length; o++) {
-          var r = opts[o].getBoundingClientRect();
-          if (r.width > 0 && r.height > 0) allOpts.push(opts[o]);
-        }
-      }
       var lv = value.toLowerCase().trim();
-      var match = null;
-      for (var i = 0; i < allOpts.length; i++) {
-        if (allOpts[i].textContent.trim().toLowerCase() === lv) { match = allOpts[i]; break; }
-      }
-      if (!match) {
-        for (var i2 = 0; i2 < allOpts.length; i2++) {
-          if (allOpts[i2].textContent.trim().toLowerCase().startsWith(lv)) { match = allOpts[i2]; break; }
-        }
-      }
-      if (!match) {
-        for (var i3 = 0; i3 < allOpts.length; i3++) {
-          if (allOpts[i3].textContent.trim().toLowerCase().indexOf(lv) !== -1) { match = allOpts[i3]; break; }
-        }
-      }
+
+      var allOpts = await openDropdownMenu(clickTarget);
+      log('  [SCAN] <span style="color:#888;">' + allOpts.length + ' options found</span>');
+
+      var match = findDropdownMatch(allOpts, lv);
       if (match) { match.click(); await delay(300); return true; }
 
       document.body.click();
-      await delay(500);
-      clickTarget.click();
-      await delay(CFG.DROPDOWN_WAIT + 200);
-      allOpts = [];
-      for (var s2 = 0; s2 < sels.length; s2++) {
-        var opts2 = document.querySelectorAll(sels[s2]);
-        for (var o2 = 0; o2 < opts2.length; o2++) {
-          var r2 = opts2[o2].getBoundingClientRect();
-          if (r2.width > 0 && r2.height > 0) allOpts.push(opts2[o2]);
-        }
-      }
-      match = null;
-      for (var j = 0; j < allOpts.length; j++) {
-        if (allOpts[j].textContent.trim().toLowerCase() === lv) { match = allOpts[j]; break; }
-      }
-      if (!match) {
-        for (var j2 = 0; j2 < allOpts.length; j2++) {
-          if (allOpts[j2].textContent.trim().toLowerCase().startsWith(lv)) { match = allOpts[j2]; break; }
-        }
-      }
-      if (!match) {
-        for (var j3 = 0; j3 < allOpts.length; j3++) {
-          if (allOpts[j3].textContent.trim().toLowerCase().indexOf(lv) !== -1) { match = allOpts[j3]; break; }
-        }
-      }
+      await delay(600);
+
+      allOpts = await openDropdownMenu(clickTarget);
+      log('  [RETRY] <span style="color:#888;">' + allOpts.length + ' options found</span>');
+
+      match = findDropdownMatch(allOpts, lv);
       if (match) { match.click(); await delay(300); return true; }
 
-      document.body.click(); await delay(200);
+      if (allOpts.length > 0) {
+        var available = allOpts.slice(0, 8).map(function(o) {
+          return '"' + o.textContent.trim().substring(0, 40) + '"';
+        }).join(', ');
+        log('  [WARN] <span style="color:#ffd740;">Available: ' + available + '</span>');
+        log('  [WARN] <span style="color:#ffd740;">Looking for: "' + value + '"</span>');
+      } else {
+        log('  [FAIL] <span style="color:#ff6b6b;">No dropdown options detected</span>');
+      }
+
+      document.body.click();
+      await delay(200);
       return false;
     } catch (e) {
       console.error('[SS Filler] fillDropdown error:', e);
@@ -561,30 +887,209 @@
     }
   }
 
+  // ============================================================
+  // MULTISELECT HELPERS
+  // ============================================================
+  async function openMultiSelectMenu(clickTarget) {
+    clickTarget.click();
+    await delay(CFG.DROPDOWN_WAIT);
+    var opts = collectMultiSelectOptions();
+    if (opts.length > 0) return opts;
+
+    clickTarget.focus();
+    clickTarget.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowDown', code: 'ArrowDown', bubbles: true
+    }));
+    await delay(CFG.DROPDOWN_WAIT);
+    opts = collectMultiSelectOptions();
+    if (opts.length > 0) return opts;
+
+    clickTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await delay(150);
+    clickTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await delay(CFG.DROPDOWN_WAIT);
+    return collectMultiSelectOptions();
+  }
+
+  function collectMultiSelectOptions() {
+    var sels = [
+      '[role="option"]', '[role="menuitem"]', '[role="menuitemcheckbox"]',
+      '[role="menuitemradio"]', '[role="checkbox"]',
+      '[class*="option"]:not([class*="option-group"]):not([class*="options-container"])',
+      '[class*="menu-item"]', '[class*="MenuItem"]',
+      '[class*="multi-select"] li', '[class*="multiselect"] li',
+      '[class*="MultiSelect"] li', '[class*="checkbox-item"]',
+      '[class*="CheckboxItem"]', '[data-testid*="option"]',
+      'ul[role="listbox"] > li', '[class*="dropdown"] li',
+      '[class*="Dropdown"] li'
+    ];
+    var seen = new Set();
+    var results = [];
+    for (var s = 0; s < sels.length; s++) {
+      var nodes = document.querySelectorAll(sels[s]);
+      for (var n = 0; n < nodes.length; n++) {
+        if (seen.has(nodes[n])) continue;
+        seen.add(nodes[n]);
+        var r = nodes[n].getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          results.push({ el: nodes[n], text: nodes[n].textContent.trim() });
+        }
+      }
+    }
+    return results;
+  }
+
+  function findBestMatch(allOpts, target) {
+    var lt = target.toLowerCase().trim();
+
+    for (var i = 0; i < allOpts.length; i++) {
+      if (allOpts[i].text.toLowerCase().trim() === lt) return allOpts[i];
+    }
+
+    if (lt.length > 3) {
+      for (var j = 0; j < allOpts.length; j++) {
+        if (allOpts[j].text.toLowerCase().trim().startsWith(lt)) return allOpts[j];
+      }
+    }
+
+    if (lt.length > 3) {
+      var containsMatches = [];
+      for (var k = 0; k < allOpts.length; k++) {
+        var optText = allOpts[k].text.toLowerCase().trim();
+        if (optText.indexOf(lt) !== -1) {
+          containsMatches.push({ opt: allOpts[k], score: Math.abs(optText.length - lt.length) });
+        }
+      }
+      if (containsMatches.length > 0) {
+        containsMatches.sort(function(a, b) { return a.score - b.score; });
+        return containsMatches[0].opt;
+      }
+    }
+
+    for (var m = 0; m < allOpts.length; m++) {
+      var optText2 = allOpts[m].text.toLowerCase().trim();
+      if (lt.indexOf(optText2) !== -1 && optText2.length > 3) return allOpts[m];
+    }
+
+    return null;
+  }
+
+  function isAlreadySelected(el) {
+    if (el.getAttribute('aria-selected') === 'true') return true;
+    if (el.getAttribute('aria-checked') === 'true') return true;
+    var checkbox = el.querySelector('input[type="checkbox"]');
+    if (checkbox && checkbox.checked) return true;
+    var cls = (el.className || '').toLowerCase();
+    if (cls.indexOf('selected') !== -1 || cls.indexOf('checked') !== -1 || cls.indexOf('active') !== -1) return true;
+    if (el.getAttribute('data-selected') === 'true' || el.getAttribute('data-checked') === 'true') return true;
+    return false;
+  }
+
+  function logAvailableOptions(allOpts) {
+    if (allOpts.length === 0) return;
+    var preview = allOpts.slice(0, 10).map(function(o) {
+      return '"' + o.text.substring(0, 50) + '"';
+    }).join(', ');
+    log('  [LIST] <span style="color:#888;">Available: ' + preview +
+      (allOpts.length > 10 ? ' ... +' + (allOpts.length - 10) + ' more' : '') + '</span>');
+  }
+
+  // ============================================================
+  // FILL MULTISELECT
+  // ============================================================
   async function fillMultiSelect(buttonEl, value) {
     try {
-      var values = value.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
-      if (!values.length) return false;
+      var rawValues = smartSplit(value);
+      if (!rawValues.length) {
+        log('  [WARN] <span style="color:#ffd740;">multiselect: no valid values</span>');
+        return false;
+      }
+
+      log('  [INPUT] <span style="color:#888;">Raw: [' +
+        rawValues.map(function(v) { return '"' + v + '"'; }).join(', ') + ']</span>');
+
+      var categories = resolveToCategories(rawValues);
+
+      log('  [RESOLVED] <span style="color:#4fc3f7;">Targets: [' +
+        categories.map(function(v) { return '"' + v + '"'; }).join(', ') + ']</span>');
+
+      if (!categories.length) {
+        log('  [FAIL] <span style="color:#ff6b6b;">No categories resolved</span>');
+        return false;
+      }
+
       var clickTarget = buttonEl;
       if (buttonEl.tagName !== 'BUTTON' && buttonEl.tagName !== 'SELECT') {
-        var inner = buttonEl.querySelector('button, [role="combobox"], [role="button"]');
+        var inner = buttonEl.querySelector(
+          'button, [role="combobox"], [role="button"], [role="listbox"], ' +
+          '[class*="trigger"], [class*="select"], [class*="dropdown"]'
+        );
         if (inner) clickTarget = inner;
       }
+
       clickTarget.scrollIntoView({ block: 'center' });
-      await delay(200); clickTarget.click(); await delay(CFG.DROPDOWN_WAIT);
-      var ok = 0;
-      for (var vi = 0; vi < values.length; vi++) {
-        var opts = document.querySelectorAll('[role="option"],[class*="option"]');
-        for (var oi = 0; oi < opts.length; oi++) {
-          var r = opts[oi].getBoundingClientRect();
-          if (r.width > 0 && r.height > 0 && opts[oi].textContent.trim().toLowerCase().indexOf(values[vi].toLowerCase()) !== -1) {
-            opts[oi].click(); ok++; await delay(300); break;
+      await delay(200);
+
+      var allOpts = await openMultiSelectMenu(clickTarget);
+
+      if (allOpts.length === 0) {
+        log('  [FAIL] <span style="color:#ff6b6b;">No multiselect options found</span>');
+        document.body.click();
+        return false;
+      }
+
+      log('  [SCAN] <span style="color:#888;">' + allOpts.length + ' options available</span>');
+
+      var ok = 0, missed = [];
+
+      for (var vi = 0; vi < categories.length; vi++) {
+        var target = categories[vi];
+        var match = findBestMatch(allOpts, target);
+
+        if (match) {
+          if (!isAlreadySelected(match.el)) {
+            match.el.click();
+            await delay(400);
+            ok++;
+            log('  [OK] <span style="color:#69f0ae;">Selected: "' + match.text + '"</span>');
+          } else {
+            ok++;
+            log('  [OK] <span style="color:#69f0ae;">Already selected: "' + match.text + '"</span>');
+          }
+        } else {
+          missed.push(target);
+          log('  [MISS] <span style="color:#ff6b6b;">No match for: "' + target + '"</span>');
+        }
+
+        if (vi < categories.length - 1) {
+          await delay(200);
+          allOpts = collectMultiSelectOptions();
+          if (allOpts.length === 0) {
+            await delay(300);
+            allOpts = await openMultiSelectMenu(clickTarget);
           }
         }
       }
-      document.body.click(); await delay(200);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Escape', code: 'Escape', bubbles: true
+      }));
+      await delay(200);
+      document.body.click();
+      await delay(200);
+
+      if (missed.length > 0) {
+        log('  [WARN] <span style="color:#ffd740;">Unmatched: ' +
+          missed.map(function(m) { return '"' + m + '"'; }).join(', ') + '</span>');
+        logAvailableOptions(allOpts);
+      }
+
       return ok > 0;
-    } catch (e) { document.body.click(); return false; }
+    } catch (e) {
+      console.error('[SS Filler] fillMultiSelect error:', e);
+      document.body.click();
+      return false;
+    }
   }
 
   // ============================================================
@@ -592,42 +1097,42 @@
   // ============================================================
   async function stepNewCase() {
     setProgress(0);
-    log('<strong>📌 Opening New Case...</strong>', true);
+    log('<strong>[STEP] Opening New Case...</strong>', true);
     if (document.querySelector('[data-testid="form-submit"]')) {
-      log('ℹ️ Form already open.'); return true;
+      log('[INFO] Form already open.'); return true;
     }
     var btn = null;
     var buttons = document.querySelectorAll('button');
     for (var b = 0; b < buttons.length; b++) {
       if (buttons[b].textContent.trim() === 'New Case') { btn = buttons[b]; break; }
     }
-    if (!btn) { log('❌ "New Case" not found.'); return false; }
-    btn.click(); log('✅ Clicked. Waiting...');
+    if (!btn) { log('[FAIL] "New Case" not found.'); return false; }
+    btn.click(); log('[OK] Clicked. Waiting...');
     for (var i = 0; i < 10; i++) {
       await delay(500);
-      if (document.querySelector('[data-testid="form-submit"]')) { log('✅ Form loaded.'); return true; }
+      if (document.querySelector('[data-testid="form-submit"]')) { log('[OK] Form loaded.'); return true; }
     }
-    log('⏳ Still loading...'); return true;
+    log('[WAIT] Still loading...'); return true;
   }
 
   async function stepSelectType() {
     setProgress(1);
-    log('<strong>📌 Checking record type...</strong>');
+    log('<strong>[STEP] Checking record type...</strong>');
     var btn = document.querySelector('#caseRecordTypeDropdown,[data-testid="case-record-type-dropdown"]');
-    if (!btn) { log('❌ Not found.'); return false; }
+    if (!btn) { log('[FAIL] Not found.'); return false; }
     if (btn.textContent.trim().indexOf('SSPA ABOS Optimization Case') !== -1) {
-      log('✅ Already selected.'); return true;
+      log('[OK] Already selected.'); return true;
     }
     var ok = await fillDropdown(btn, 'SSPA ABOS Optimization Case');
-    if (ok) { log('✅ Selected.'); await delay(CFG.STEP_DELAY); return true; }
-    log('❌ Failed.'); return false;
+    if (ok) { log('[OK] Selected.'); await delay(CFG.STEP_DELAY); return true; }
+    log('[FAIL] Could not select.'); return false;
   }
 
   async function stepFillForm() {
     setProgress(2);
-    if (!Object.keys(parsedData).length) { log('❌ No data! Parse first.', true); return; }
-    log('<strong>📌 Filling...</strong>');
-    log('──────────────────────────────');
+    if (!Object.keys(parsedData).length) { log('[FAIL] No data! Parse first.', true); return; }
+    log('<strong>[STEP] Filling form...</strong>');
+    log('--------------------------------');
     var filled = 0, failed = 0, skipped = 0;
     var failedFields = [];
 
@@ -645,7 +1150,7 @@
         }
       }
       if (!el) {
-        log('❌ <span style="color:#ff6b6b">' + f.key + '</span>: element not found');
+        log('[FAIL] <span style="color:#ff6b6b">' + f.key + '</span>: element not found');
         failedFields.push(f.key);
         failed++;
         continue;
@@ -657,18 +1162,18 @@
 
       if (ok) {
         var s = val.length > 30 ? val.substring(0, 30) + '...' : val;
-        log('✅ <span style="color:#69f0ae">' + f.key + '</span> → "' + s + '"');
+        log('[OK] <span style="color:#69f0ae">' + f.key + '</span> -> "' + s + '"');
         filled++;
       } else {
-        log('⚠️ <span style="color:#ffd740">' + f.key + '</span>: fill failed');
+        log('[WARN] <span style="color:#ffd740">' + f.key + '</span>: fill failed');
         failedFields.push(f.key);
         failed++;
       }
     }
 
-    log('──────────────────────────────');
-    log('<strong>📊 ✅' + filled + ' │ ❌' + failed + ' │ ⏭' + skipped + '</strong>');
-    if (failed) log('<em style="color:#ff9900;">💡 Failed fields → manual input</em>');
+    log('--------------------------------');
+    log('<strong>[RESULT] OK:' + filled + ' | FAIL:' + failed + ' | SKIP:' + skipped + '</strong>');
+    if (failed) log('<em style="color:#ff9900;">Failed fields need manual input</em>');
     showManualReminder(failedFields);
     setProgress(3);
   }
@@ -682,7 +1187,7 @@
 
     var dueDateValue = parsedData.dueDate;
     if (dueDateValue) {
-      manualItems.push('Due Date — <strong style="color:#ff6b6b;">' + dueDateValue + '</strong>');
+      manualItems.push('Due Date -- <strong style="color:#ff6b6b;">' + dueDateValue + '</strong>');
     } else {
       manualItems.push('Due Date');
     }
@@ -699,8 +1204,8 @@
 
     if (manualItems.length === 0) {
       log('<div style="margin-top:6px; padding:10px 12px; background:#00a651; color:#fff; border-radius:8px; font-size:12px;">' +
-        '<strong>✅ All fields filled successfully!</strong><br>' +
-        '<span>👉 Please review and click <strong>Submit</strong>.</span></div>');
+        '<strong>[OK] All fields filled successfully!</strong><br>' +
+        '<span>Please review and click Submit.</span></div>');
       return;
     }
 
@@ -710,14 +1215,14 @@
     }
 
     log('<div style="margin-top:6px; padding:10px 12px; background:#ff9900; color:#000; border-radius:8px; font-size:12px; line-height:1.7;">' +
-      '<strong style="font-size:13px;">⚠️ MANUAL ACTION REQUIRED</strong><br>' +
+      '<strong style="font-size:13px;">[!] MANUAL ACTION REQUIRED</strong><br>' +
       '<span>Please manually fill/verify the following before submitting:</span>' +
       '<ol style="margin:6px 0 4px 18px; padding:0;">' + items + '</ol>' +
-      '<span>👉 After confirming all fields, click <strong>Submit</strong>.</span></div>');
+      '<span>After confirming all fields, click <strong>Submit</strong>.</span></div>');
   }
 
   async function runFullFlow() {
-    if (!Object.keys(parsedData).length) { alert('⚠️ Parse first! (Step 1)'); return; }
+    if (!Object.keys(parsedData).length) { alert('Parse first! (Step 1)'); return; }
     var s0 = await stepNewCase();
     if (!s0) return;
     await delay(CFG.STEP_DELAY);
@@ -725,7 +1230,7 @@
     if (!s1) return;
     await delay(CFG.STEP_DELAY);
     await stepFillForm();
-    log('<strong>🏁 Done! Review the reminder above ☝️</strong>');
+    log('<strong>[DONE] Review the reminder above.</strong>');
   }
 
   // ============================================================
