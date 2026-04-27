@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         SS Case Log Auto-Filler v5.1
+// @name         SS Case Log Auto-Filler v5.2
 // @namespace    http://tampermonkey.net/
-// @version      5.1
-// @description  v5.0: Fixed all 4 dropdown fields, lever-to-category mapping, enhanced multiselect, React portal support, debug inspector. No emoji.
+// @version      5.2
+// @description  v5.2: Fixed primaryGoal field selector, due date color white, enhanced inspect keywords.
 // @match        https://advertising.amazon.com/case-manager*
 // @match        https://advertising.amazon.co.jp/case-manager*
 // @match        https://advertising.amazon.co.uk/case-manager*
@@ -57,8 +57,26 @@
     { key: "rodeoCfId", selector: '[data-testid="rodeoAdvertiserCfId-field"]', altSelectors: ['[name="rodeoAdvertiserCfId"]'], type: "text" },
     { key: "advertiserId", selector: '[data-testid="advertiser.id-field"]', altSelectors: ['[name="advertiserId"]'], type: "text" },
     { key: "entityId", selector: '[data-testid="entityId-field"]', altSelectors: ['[name="entityId"]'], type: "text" },
-    { key: "primaryGoalKPI", selector: '[data-testid="primaryGoalKPI-field"]', altSelectors: [], type: "text" },
-    { key: "primaryGoalConsideration", selector: '[data-testid="primaryGoalConsideration-field"]', altSelectors: ['[name="primaryGoalConsideration"]'], type: "text" },
+    {
+      key: "primaryGoalKPI",
+      selector: '[data-testid="primaryGoalKPI-field"]',
+      altSelectors: [
+        '[data-takt-id="primaryGoalKPI-field-input"]',
+        '[name="primaryGoalKPI"]'
+      ],
+      type: "text"
+    },
+    {
+      key: "primaryGoalConsideration",
+      selector: '[data-testid="primaryGoal-field"]',
+      altSelectors: [
+        '[data-takt-id="primaryGoal-field-input"]',
+        '[data-testid="primaryGoalConsideration-field"]',
+        '[name="primaryGoal"]',
+        '[name="primaryGoalConsideration"]'
+      ],
+      type: "text"
+    },
     { key: "assignmentCreationReason", selector: '[data-testid="assignmentCreationReason-field"]', altSelectors: [], type: "text" },
     { key: "submitterEmail", selector: '[data-testid="submittedByEmailAddress-field"]', altSelectors: ['[name="submittedByEmailAddress"]'], type: "text" },
     { key: "submittedBy", selector: '[data-testid="submittedBy-field"]', altSelectors: ['[name="submittedBy"]'], type: "text" },
@@ -331,7 +349,7 @@
     h += '<div id="ss-header" style="background:#1a1a2e;padding:10px 14px;cursor:move;user-select:none;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;flex-shrink:0;">';
     h += '<div style="display:flex;align-items:center;gap:8px;">';
     h += '<strong style="font-size:14px;">SS Case Filler</strong>';
-    h += '<span style="font-size:10px;color:#888;background:#333;padding:1px 6px;border-radius:8px;">v5.0</span>';
+    h += '<span style="font-size:10px;color:#888;background:#333;padding:1px 6px;border-radius:8px;">v5.2</span>';
     h += '</div>';
     h += '<div style="display:flex;gap:6px;align-items:center;">';
     h += '<span id="ss-btn-minimize" title="Minimize" style="cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;background:#333;">-</span>';
@@ -455,7 +473,7 @@
     document.getElementById('ss-inspect-btn').addEventListener('click', function() {
       log('<strong>[INSPECT] Scanning form fields...</strong>', true);
       var allTestIds = document.querySelectorAll('[data-testid]');
-      var keywords = ['optim', 'market', 'categ', 'deliv', 'type', 'brand', 'assign', 'status'];
+      var keywords = ['optim', 'market', 'categ', 'deliv', 'type', 'brand', 'assign', 'status', 'goal', 'primary', 'kpi'];
       var found = 0;
       for (var i = 0; i < allTestIds.length; i++) {
         var tid = allTestIds[i].getAttribute('data-testid');
@@ -1197,7 +1215,8 @@
 
     var dueDateValue = parsedData.dueDate;
     if (dueDateValue) {
-      manualItems.push('Due Date -- <strong style="color:#ff6b6b;">' + dueDateValue + '</strong>');
+      // ★ FIX v5.2: Due Date 字体颜色改为白色 ★
+      manualItems.push('Due Date -- <strong style="color:#ffffff;">' + dueDateValue + '</strong>');
     } else {
       manualItems.push('Due Date');
     }
