@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         SS Case Log Auto-Filler v5.0
+// @name         SS Case Log Auto-Filler v5.1
 // @namespace    http://tampermonkey.net/
-// @version      5.0
-// @description  v5.0: Fixed all 4 dropdown fields, lever-to-category mapping, enhanced multiselect, React portal support, debug inspector.
+// @version      5.1
+// @description  v5.0: Fixed all 4 dropdown fields, lever-to-category mapping, enhanced multiselect, React portal support, debug inspector. No emoji.
 // @match        https://advertising.amazon.com/case-manager*
 // @match        https://advertising.amazon.co.jp/case-manager*
 // @match        https://advertising.amazon.co.uk/case-manager*
@@ -14,10 +14,7 @@
 (function () {
   'use strict';
 
-  // ============================================================
-  // PARSE MAP
-  // ============================================================
-  const PARSE_MAP = [
+  var PARSE_MAP = [
     { pattern: "Assignment creation reason", key: "assignmentCreationReason" },
     { pattern: "Submitter email address",    key: "submitterEmail" },
     { pattern: "Optimization marketplace",   key: "optimizationMarketplace" },
@@ -44,36 +41,34 @@
     { pattern: "Case Status",               key: "caseStatus" },
     { pattern: "Entity ID",                 key: "entityId" },
     { pattern: "Due Date",                  key: "dueDate" },
-    { pattern: "Assignee",                  key: "assignee" },
+    { pattern: "Assignee",                  key: "assignee" }
   ];
 
-  const IGNORE_VALUES = [
+  var IGNORE_VALUES = [
     "please select", "please input", "keep it blank",
     "tick the levers", "select actual", "(keep it blank)"
   ];
 
-  // ============================================================
-  // DOM MAP
-  // ============================================================
-  const DOM_MAP = [
-    { key: "assignee",                 selector: '[data-testid="assignee-field"]',                    altSelectors: ['[name="assignee"]', '#assignee'], type: "text" },
-    { key: "accountVertical",          selector: '[data-testid="accountVertical-field"]',              altSelectors: [], type: "text" },
-    { key: "accountName",              selector: '[data-testid="accountName-field"]',                  altSelectors: ['[name="accountName"]'], type: "text" },
-    { key: "brandName",                selector: '[data-testid="brandName-field"]',                    altSelectors: ['[data-testid="brand-name-field"]', '[data-testid="brand.name-field"]', '[name="brandName"]', '[id*="brandName"]', '[id*="brand-name"]'], type: "text" },
-    { key: "rodeoCfId",                selector: '[data-testid="rodeoAdvertiserCfId-field"]',          altSelectors: ['[name="rodeoAdvertiserCfId"]'], type: "text" },
-    { key: "advertiserId",             selector: '[data-testid="advertiser.id-field"]',                altSelectors: ['[name="advertiserId"]'], type: "text" },
-    { key: "entityId",                 selector: '[data-testid="entityId-field"]',                     altSelectors: ['[name="entityId"]'], type: "text" },
-    { key: "primaryGoalKPI",           selector: '[data-testid="primaryGoalKPI-field"]',               altSelectors: [], type: "text" },
-    { key: "primaryGoalConsideration", selector: '[data-testid="primaryGoalConsideration-field"]',     altSelectors: ['[name="primaryGoalConsideration"]'], type: "text" },
-    { key: "assignmentCreationReason", selector: '[data-testid="assignmentCreationReason-field"]',     altSelectors: [], type: "text" },
-    { key: "submitterEmail",           selector: '[data-testid="submittedByEmailAddress-field"]',      altSelectors: ['[name="submittedByEmailAddress"]'], type: "text" },
-    { key: "submittedBy",              selector: '[data-testid="submittedBy-field"]',                  altSelectors: ['[name="submittedBy"]'], type: "text" },
-    { key: "requestedBy",              selector: '[data-testid="requestedBy-field"]',                  altSelectors: ['[data-testid="requesterBy-field"]', '[data-testid="requester-field"]', '[name="requestedBy"]', '[name="requesterBy"]'], type: "text" },
-    { key: "sfAccountId",              selector: '[data-testid="sfAccountId-field"]',                  altSelectors: [], type: "text" },
-    { key: "caseDescription",          selector: '[data-testid="caseDescription-field"]',              altSelectors: ['[data-testid="description-field"]', '#caseDescription', '#description', 'textarea[name*="description"]', 'textarea[name*="Description"]', '[data-testid="caseDescription"] textarea'], type: "textarea" },
-    { key: "additionalInformation",    selector: '#additionalInformation',                             altSelectors: ['[data-testid="additionalInformation-field"]', 'textarea[name*="additional"]'], type: "textarea" },
-    { key: "caseStatus",               selector: '[data-testid="status-field"]',                       altSelectors: ['[data-testid="caseStatus-field"]'], type: "dropdown" },
-    { key: "assignmentstatus",
+  var DOM_MAP = [
+    { key: "assignee", selector: '[data-testid="assignee-field"]', altSelectors: ['[name="assignee"]', '#assignee'], type: "text" },
+    { key: "accountVertical", selector: '[data-testid="accountVertical-field"]', altSelectors: [], type: "text" },
+    { key: "accountName", selector: '[data-testid="accountName-field"]', altSelectors: ['[name="accountName"]'], type: "text" },
+    { key: "brandName", selector: '[data-testid="brandName-field"]', altSelectors: ['[data-testid="brand-name-field"]', '[data-testid="brand.name-field"]', '[name="brandName"]', '[id*="brandName"]', '[id*="brand-name"]'], type: "text" },
+    { key: "rodeoCfId", selector: '[data-testid="rodeoAdvertiserCfId-field"]', altSelectors: ['[name="rodeoAdvertiserCfId"]'], type: "text" },
+    { key: "advertiserId", selector: '[data-testid="advertiser.id-field"]', altSelectors: ['[name="advertiserId"]'], type: "text" },
+    { key: "entityId", selector: '[data-testid="entityId-field"]', altSelectors: ['[name="entityId"]'], type: "text" },
+    { key: "primaryGoalKPI", selector: '[data-testid="primaryGoalKPI-field"]', altSelectors: [], type: "text" },
+    { key: "primaryGoalConsideration", selector: '[data-testid="primaryGoalConsideration-field"]', altSelectors: ['[name="primaryGoalConsideration"]'], type: "text" },
+    { key: "assignmentCreationReason", selector: '[data-testid="assignmentCreationReason-field"]', altSelectors: [], type: "text" },
+    { key: "submitterEmail", selector: '[data-testid="submittedByEmailAddress-field"]', altSelectors: ['[name="submittedByEmailAddress"]'], type: "text" },
+    { key: "submittedBy", selector: '[data-testid="submittedBy-field"]', altSelectors: ['[name="submittedBy"]'], type: "text" },
+    { key: "requestedBy", selector: '[data-testid="requestedBy-field"]', altSelectors: ['[data-testid="requesterBy-field"]', '[data-testid="requester-field"]', '[name="requestedBy"]', '[name="requesterBy"]'], type: "text" },
+    { key: "sfAccountId", selector: '[data-testid="sfAccountId-field"]', altSelectors: [], type: "text" },
+    { key: "caseDescription", selector: '[data-testid="caseDescription-field"]', altSelectors: ['[data-testid="description-field"]', '#caseDescription', '#description', 'textarea[name*="description"]', 'textarea[name*="Description"]', '[data-testid="caseDescription"] textarea'], type: "textarea" },
+    { key: "additionalInformation", selector: '#additionalInformation', altSelectors: ['[data-testid="additionalInformation-field"]', 'textarea[name*="additional"]'], type: "textarea" },
+    { key: "caseStatus", selector: '[data-testid="status-field"]', altSelectors: ['[data-testid="caseStatus-field"]'], type: "dropdown" },
+    {
+      key: "assignmentstatus",
       selector: '[data-testid="assignmentStatus-field"]',
       altSelectors: [
         '[data-testid="assignmentstatus-field"]',
@@ -82,10 +77,12 @@
         '[id*="assignmentStatus"]',
         '[aria-label="Select option"]'
       ],
-      type: "dropdown" },
-    { key: "advertiserType",           selector: '[data-testid="advertiser.type-field"]',              altSelectors: [], type: "dropdown" },
-    { key: "submittingTeam",           selector: '[data-testid="submittedByTeam-field"]',              altSelectors: [], type: "dropdown" },
-    { key: "optimizationType",
+      type: "dropdown"
+    },
+    { key: "advertiserType", selector: '[data-testid="advertiser.type-field"]', altSelectors: [], type: "dropdown" },
+    { key: "submittingTeam", selector: '[data-testid="submittedByTeam-field"]', altSelectors: [], type: "dropdown" },
+    {
+      key: "optimizationType",
       selector: '[data-testid="optimizationType-field"]',
       altSelectors: [
         '[data-testid="optimization-type-field"]',
@@ -96,8 +93,10 @@
         '[aria-label*="Optimization Type"]',
         '[aria-label*="optimization type"]'
       ],
-      type: "dropdown" },
-    { key: "optimizationDelivery",
+      type: "dropdown"
+    },
+    {
+      key: "optimizationDelivery",
       selector: '[data-testid="optimizationDelivery-field"]',
       altSelectors: [
         '[data-testid="optimization-delivery-field"]',
@@ -108,8 +107,10 @@
         '[aria-label*="Optimization Delivery"]',
         '[aria-label*="optimization delivery"]'
       ],
-      type: "dropdown" },
-    { key: "optimizationMarketplace",
+      type: "dropdown"
+    },
+    {
+      key: "optimizationMarketplace",
       selector: '[data-testid="advertiser.marketplaceId-field"]',
       altSelectors: [
         '[data-testid="optimizationMarketplace-field"]',
@@ -123,8 +124,10 @@
         '[aria-label*="Optimization Marketplace"]',
         '[aria-label*="Marketplace"]'
       ],
-      type: "dropdown" },
-    { key: "optimizationCategories",
+      type: "dropdown"
+    },
+    {
+      key: "optimizationCategories",
       selector: '[data-testid="optimizationCategories-field"]',
       altSelectors: [
         '[data-testid="optimization-categories-field"]',
@@ -135,15 +138,14 @@
         '[aria-label*="Optimization Categories"]',
         '[aria-label*="optimization categories"]'
       ],
-      type: "multiselect" },
+      type: "multiselect"
+    }
   ];
 
-  // ============================================================
-  // LEVER TO CATEGORY REVERSE LOOKUP MAP
-  // ============================================================
-  const CATEGORY_LEVER_MAP = {
+  var CATEGORY_LEVER_MAP = {
     "Frequency Cap / Twitch - Frequency Cap": [
-      "Order Frequency Cap", "Line Item Frequency Cap",
+      "Order Frequency Cap",
+      "Line Item Frequency Cap",
       "Order Frequency Group Campaign Association"
     ],
     "Auto-Optimization": [
@@ -153,44 +155,61 @@
       "Line Item Supply Sources"
     ],
     "Bid Change": [
-      "Line Item Base Supply Bid", "Line Item Max Supply Bid",
-      "Line Item Base CPC", "Line Item Sold CPC", "Line Item Sold CPM",
-      "Line Item Bid Strategy", "Order Bid Strategy"
+      "Line Item Base Supply Bid",
+      "Line Item Max Supply Bid",
+      "Line Item Base CPC",
+      "Line Item Sold CPC",
+      "Line Item Sold CPM",
+      "Line Item Bid Strategy",
+      "Order Bid Strategy"
     ],
     "Budget Allocation \u2014 Order to Order": [
-      "Order Budget", "Order Budget Cap",
-      "Order Flight Budget Amount", "Order Flight Budget Rollover"
+      "Order Budget",
+      "Order Budget Cap",
+      "Order Flight Budget Amount",
+      "Order Flight Budget Rollover"
     ],
     "Domain Targeting": [
       "Line Item Domain Targeting"
     ],
     "Start Date Change": [
-      "Order Start Date Time", "Line Item Start Date",
-      "Line Item Flight Start Date", "Order Flight Start Time"
+      "Order Start Date Time",
+      "Line Item Start Date",
+      "Line Item Flight Start Date",
+      "Order Flight Start Time"
     ],
     "Creative": [
-      "Line Item Creative Association", "Line Item Creative Status",
-      "Line Item Creative Approval Status", "Line Item Creative Sizes",
+      "Line Item Creative Association",
+      "Line Item Creative Status",
+      "Line Item Creative Approval Status",
+      "Line Item Creative Sizes",
       "Line Item Placement Position"
     ],
     "Twitch \u2014 Pacing Profile": [
-      "Line Item Pacing Profile", "Line Item Catchup Boost"
+      "Line Item Pacing Profile",
+      "Line Item Catchup Boost"
     ],
     "ASIN / Pixel Updates": [
-      "Order ASINs", "Order Conversion Pixels",
+      "Order ASINs",
+      "Order Conversion Pixels",
       "Order Off Amazon Conversions"
     ],
     "Billing Updates": [
-      "Order Agency Fee", "Line Item 3P Fees",
+      "Order Agency Fee",
+      "Line Item 3P Fees",
       "Line Item In Market Audience Fees",
       "Line Item Automotive Audience Fees",
       "Line Item Amazon Platform Fee"
     ],
     "Budget Allocation \u2014 Within DSP Order": [
-      "Line Item Budget", "Line Item Budget Cap",
-      "Line Item Budget Cap Amount", "Line Item Budget Type",
-      "Line Item Flight Budget", "Line Item Total Impressions",
-      "Line Item Projected Spend", "Line Item Budget Cap Date",
+      "Line Item Budget",
+      "Line Item Budget Cap",
+      "Line Item Budget Cap Amount",
+      "Line Item Budget Type",
+      "Line Item Flight Budget",
+      "Line Item Total Impressions",
+      "Line Item Projected Spend",
+      "Line Item Budget Cap Date",
       "Line Item Budget Cap Delivery Profile",
       "Line Item Budget Cap Recurrence"
     ],
@@ -204,14 +223,22 @@
       "Line Item Targeting Location"
     ],
     "Book New Order or Line": [
-      "Line Item Name", "Line Item Type", "Line Item Status",
-      "Order Name", "Order Status", "Order Type"
+      "Line Item Name",
+      "Line Item Type",
+      "Line Item Status",
+      "Order Name",
+      "Order Status",
+      "Order Type"
     ],
     "Targeting \u2014 Segment": [
-      "Line Item Audience Targeting", "Line Item Contextual Targeting",
-      "Line Item Targeting String", "Line Item Content Rating",
-      "Line Item Content Genres", "Line Item Content Categories",
-      "Line Item Mobile OS Targeting", "Line Item Mobile App Targeting",
+      "Line Item Audience Targeting",
+      "Line Item Contextual Targeting",
+      "Line Item Targeting String",
+      "Line Item Content Rating",
+      "Line Item Content Genres",
+      "Line Item Content Categories",
+      "Line Item Mobile OS Targeting",
+      "Line Item Mobile App Targeting",
       "Line Item Mobile Environment Targeting",
       "Line Item Audience Targeting Match Type",
       "Line Item Third Party Custom Segments",
@@ -222,16 +249,22 @@
       "Line Item Third Party Context Control Targeting",
       "Line Item Third Party Authentic Brand Safety",
       "Line Item Third Party Custom Contextual",
-      "Line Item Site Targeting", "Line Item Site Language",
-      "Line Item Unified Language", "Line Item Product Categories"
+      "Line Item Site Targeting",
+      "Line Item Site Language",
+      "Line Item Unified Language",
+      "Line Item Product Categories"
     ],
     "Pacing Profile": [
-      "Line Item Pacing Profile", "Line Item Delivery Priority",
-      "Line Item Catchup Boost", "Line Item Optimization Type"
+      "Line Item Pacing Profile",
+      "Line Item Delivery Priority",
+      "Line Item Catchup Boost",
+      "Line Item Optimization Type"
     ],
     "End Date Change": [
-      "Order End Date Time", "Line Item End Date",
-      "Line Item Flight End Date", "Order Flight End Time",
+      "Order End Date Time",
+      "Line Item End Date",
+      "Line Item Flight End Date",
+      "Order Flight End Time",
       "Order Flight"
     ],
     "Other": [
@@ -239,152 +272,106 @@
       "Line Item Third Party Viewability MRC",
       "Line Item Third Party IAS Viewability",
       "Line Item Third Party DV Viewability",
-      "Order Goals", "Order General Goals",
-      "Line Item Deals", "Line Item Inventory Groups Deals",
+      "Order Goals",
+      "Order General Goals",
+      "Line Item Deals",
+      "Line Item Inventory Groups Deals",
       "Order Deals"
     ],
     "Actualization": [
-      "Line Item Status", "Order Status"
+      "Line Item Status",
+      "Order Status"
     ],
     "Twitch \u2014 Book New Order": [
-      "Line Item Name", "Line Item Type"
+      "Line Item Name",
+      "Line Item Type"
     ],
     "Twitch \u2014 Targeting Update": [
-      "Line Item Audience Targeting", "Line Item Contextual Targeting"
+      "Line Item Audience Targeting",
+      "Line Item Contextual Targeting"
     ]
   };
 
-  const LEVER_TO_CATEGORY = {};
-  Object.keys(CATEGORY_LEVER_MAP).forEach(function(category) {
-    var levers = CATEGORY_LEVER_MAP[category];
-    for (var i = 0; i < levers.length; i++) {
-      var leverKey = levers[i].toLowerCase().trim();
+  var LEVER_TO_CATEGORY = {};
+  var catKeys = Object.keys(CATEGORY_LEVER_MAP);
+  for (var ci = 0; ci < catKeys.length; ci++) {
+    var catName = catKeys[ci];
+    var levers = CATEGORY_LEVER_MAP[catName];
+    for (var li = 0; li < levers.length; li++) {
+      var leverKey = levers[li].toLowerCase().trim();
       if (!LEVER_TO_CATEGORY[leverKey]) {
         LEVER_TO_CATEGORY[leverKey] = [];
       }
-      LEVER_TO_CATEGORY[leverKey].push(category);
+      LEVER_TO_CATEGORY[leverKey].push(catName);
     }
-  });
+  }
 
-  // ============================================================
-  // CONFIG
-  // ============================================================
-  const CFG = { FILL_DELAY: 400, DROPDOWN_WAIT: 800, STEP_DELAY: 1500 };
-  let parsedData = {};
+  var CFG = { FILL_DELAY: 400, DROPDOWN_WAIT: 800, STEP_DELAY: 1500 };
+  var parsedData = {};
 
-  // ============================================================
-  // UI PANEL
-  // ============================================================
   function createPanel() {
-    const mini = document.createElement('div');
+    var mini = document.createElement('div');
     mini.id = 'ss-mini';
     mini.textContent = 'SS';
     mini.title = 'Open SS Case Filler';
-    Object.assign(mini.style, {
-      position: 'fixed', top: '10px', right: '10px', zIndex: '99999',
-      width: '42px', height: '42px', borderRadius: '50%',
-      background: '#ff9900', color: '#000', fontSize: '14px', fontWeight: 'bold',
-      display: 'none', cursor: 'pointer', userSelect: 'none',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-      lineHeight: '42px', textAlign: 'center'
-    });
+    mini.style.cssText = 'position:fixed;top:10px;right:10px;z-index:99999;width:42px;height:42px;border-radius:50%;background:#ff9900;color:#000;font-size:14px;font-weight:bold;display:none;cursor:pointer;user-select:none;box-shadow:0 2px 12px rgba(0,0,0,0.4);line-height:42px;text-align:center;';
     document.body.appendChild(mini);
 
-    const panel = document.createElement('div');
+    var panel = document.createElement('div');
     panel.id = 'ss-panel';
-    const savedPos = JSON.parse(localStorage.getItem('ss-panel-pos') || 'null');
-    const startTop = savedPos ? savedPos.top : '10px';
-    const startLeft = savedPos ? savedPos.left : '';
-    const startRight = savedPos ? '' : '10px';
-    Object.assign(panel.style, {
-      position: 'fixed', zIndex: '99999',
-      top: startTop, right: startRight,
-      background: '#232f3e', color: '#fff', borderRadius: '12px',
-      padding: '0', width: '380px', fontFamily: 'Arial, sans-serif',
-      boxShadow: '0 4px 24px rgba(0,0,0,0.5)', fontSize: '13px',
-      maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-      overflow: 'hidden'
-    });
-    if (startLeft) panel.style.left = startLeft;
+    var savedPos = JSON.parse(localStorage.getItem('ss-panel-pos') || 'null');
+    var startTop = savedPos ? savedPos.top : '10px';
+    var startLeft = savedPos ? savedPos.left : '';
+    var startRight = savedPos ? '' : '10px';
+    panel.style.cssText = 'position:fixed;z-index:99999;background:#232f3e;color:#fff;border-radius:12px;padding:0;width:380px;font-family:Arial,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,0.5);font-size:13px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;';
+    panel.style.top = startTop;
+    if (startLeft) { panel.style.left = startLeft; } else { panel.style.right = startRight; }
 
     var h = '';
-    h += '<div id="ss-header" style="';
-    h += 'background:#1a1a2e; padding:10px 14px; cursor:move; user-select:none;';
-    h += 'display:flex; justify-content:space-between; align-items:center;';
-    h += 'border-bottom:1px solid #333; flex-shrink:0;';
-    h += '">';
-    h += '<div style="display:flex; align-items:center; gap:8px;">';
+    h += '<div id="ss-header" style="background:#1a1a2e;padding:10px 14px;cursor:move;user-select:none;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;flex-shrink:0;">';
+    h += '<div style="display:flex;align-items:center;gap:8px;">';
     h += '<strong style="font-size:14px;">SS Case Filler</strong>';
     h += '<span style="font-size:10px;color:#888;background:#333;padding:1px 6px;border-radius:8px;">v5.0</span>';
     h += '</div>';
-    h += '<div style="display:flex; gap:6px; align-items:center;">';
+    h += '<div style="display:flex;gap:6px;align-items:center;">';
     h += '<span id="ss-btn-minimize" title="Minimize" style="cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;background:#333;">-</span>';
     h += '<span id="ss-btn-resize" title="Collapse" style="cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;background:#333;">v</span>';
     h += '</div>';
     h += '</div>';
-    h += '<div id="ss-body" style="padding:14px; overflow-y:auto; flex:1;">';
+
+    h += '<div id="ss-body" style="padding:14px;overflow-y:auto;flex:1;">';
+
     h += '<div id="ss-paste-section">';
-    h += '<div style="background:#ff9900;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
-    h += '1. PASTE YOUR SS DVA CASE CREATION INFO</div>';
-    h += '<textarea id="ss-input" placeholder="Paste your case log here..." style="';
-    h += 'width:100%; height:170px; background:#1a2332; color:#e0e0e0;';
-    h += 'border:1px solid #444; border-radius:6px; padding:8px;';
-    h += 'font-family:monospace; font-size:11px; resize:vertical;';
-    h += 'box-sizing:border-box;"></textarea>';
-    h += '<button id="ss-parse-btn" style="';
-    h += 'width:100%; padding:10px; margin-top:6px; border:none;';
-    h += 'border-radius:6px; background:#ff9900; color:#000;';
-    h += 'font-weight:bold; cursor:pointer; font-size:13px;';
-    h += '">Parse & Preview</button>';
+    h += '<div style="background:#ff9900;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">1. PASTE YOUR SS DVA CASE CREATION INFO</div>';
+    h += '<textarea id="ss-input" placeholder="Paste your case log here..." style="width:100%;height:170px;background:#1a2332;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:8px;font-family:monospace;font-size:11px;resize:vertical;box-sizing:border-box;"></textarea>';
+    h += '<button id="ss-parse-btn" style="width:100%;padding:10px;margin-top:6px;border:none;border-radius:6px;background:#ff9900;color:#000;font-weight:bold;cursor:pointer;font-size:13px;">Parse and Preview</button>';
     h += '</div>';
-    h += '<div id="ss-preview-section" style="display:none; margin-top:8px;">';
-    h += '<div style="background:#00a651;color:#fff;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
-    h += 'PARSED DATA PREVIEW</div>';
-    h += '<div id="ss-preview" style="';
-    h += 'background:#1a2332; padding:8px; border-radius:6px;';
-    h += 'max-height:180px; overflow-y:auto; font-size:11px; line-height:1.8;';
-    h += '"></div>';
-    h += '<button id="ss-edit-btn" style="';
-    h += 'width:100%; padding:6px; margin-top:6px; border:1px solid #555;';
-    h += 'border-radius:6px; background:transparent; color:#aaa;';
-    h += 'cursor:pointer; font-size:11px;';
-    h += '">Back to Edit</button>';
+
+    h += '<div id="ss-preview-section" style="display:none;margin-top:8px;">';
+    h += '<div style="background:#00a651;color:#fff;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">PARSED DATA PREVIEW</div>';
+    h += '<div id="ss-preview" style="background:#1a2332;padding:8px;border-radius:6px;max-height:180px;overflow-y:auto;font-size:11px;line-height:1.8;"></div>';
+    h += '<button id="ss-edit-btn" style="width:100%;padding:6px;margin-top:6px;border:1px solid #555;border-radius:6px;background:transparent;color:#aaa;cursor:pointer;font-size:11px;">Back to Edit</button>';
     h += '</div>';
+
     h += '<div style="margin-top:10px;">';
-    h += '<div style="background:#4fc3f7;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">';
-    h += '2. CREATE NEW CASE</div>';
+    h += '<div style="background:#4fc3f7;color:#000;padding:5px 10px;border-radius:6px;font-weight:bold;margin-bottom:8px;font-size:12px;">2. CREATE NEW CASE</div>';
     h += '<div style="display:flex;gap:4px;margin-bottom:8px;">';
     h += '<div id="ss-p0" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">New Case</div>';
     h += '<div id="ss-p1" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">Record Type</div>';
     h += '<div id="ss-p2" style="flex:1;text-align:center;padding:3px;border-radius:4px;background:#1a2332;font-size:10px;">Fill Form</div>';
     h += '</div>';
-    h += '<button id="ss-create-btn" style="';
-    h += 'width:100%; padding:12px; border:none; border-radius:6px;';
-    h += 'background:#00a651; color:#fff; font-weight:bold;';
-    h += 'cursor:pointer; font-size:14px;';
-    h += '">Create New Case</button>';
-    h += '<button id="ss-fill-only-btn" style="';
-    h += 'width:100%; padding:7px; margin-top:6px; border:1px solid #00a651;';
-    h += 'border-radius:6px; background:transparent; color:#00a651;';
-    h += 'cursor:pointer; font-size:11px;';
-    h += '">Fill Only (form already open)</button>';
-    h += '<button id="ss-inspect-btn" style="';
-    h += 'width:100%; padding:7px; margin-top:6px; border:1px solid #4fc3f7;';
-    h += 'border-radius:6px; background:transparent; color:#4fc3f7;';
-    h += 'cursor:pointer; font-size:11px;';
-    h += '">Inspect Form Fields (Debug)</button>';
+    h += '<button id="ss-create-btn" style="width:100%;padding:12px;border:none;border-radius:6px;background:#00a651;color:#fff;font-weight:bold;cursor:pointer;font-size:14px;">Create New Case</button>';
+    h += '<button id="ss-fill-only-btn" style="width:100%;padding:7px;margin-top:6px;border:1px solid #00a651;border-radius:6px;background:transparent;color:#00a651;cursor:pointer;font-size:11px;">Fill Only (form already open)</button>';
+    h += '<button id="ss-inspect-btn" style="width:100%;padding:7px;margin-top:6px;border:1px solid #4fc3f7;border-radius:6px;background:transparent;color:#4fc3f7;cursor:pointer;font-size:11px;">Inspect Form Fields (Debug)</button>';
     h += '</div>';
-    h += '<div id="ss-log" style="';
-    h += 'background:#1a2332; padding:8px; border-radius:6px;';
-    h += 'margin-top:10px; max-height:160px; overflow-y:auto;';
-    h += 'font-size:11px; line-height:1.6; display:none;';
-    h += '"></div>';
+
+    h += '<div id="ss-log" style="background:#1a2332;padding:8px;border-radius:6px;margin-top:10px;max-height:160px;overflow-y:auto;font-size:11px;line-height:1.6;display:none;"></div>';
+
     h += '</div>';
 
     panel.innerHTML = h;
     document.body.appendChild(panel);
 
-    // DRAG: Main Panel
     var isDragging = false, dragOX = 0, dragOY = 0;
     var header = document.getElementById('ss-header');
     header.addEventListener('mousedown', function(e) {
@@ -412,10 +399,10 @@
       }
     });
 
-    // DRAG: Mini Button
     var miniDrag = false, miniOX = 0, miniOY = 0, miniMoved = false;
     mini.addEventListener('mousedown', function(e) {
-      miniDrag = true; miniMoved = false;
+      miniDrag = true;
+      miniMoved = false;
       miniOX = e.clientX - mini.getBoundingClientRect().left;
       miniOY = e.clientY - mini.getBoundingClientRect().top;
       mini.style.transition = 'none';
@@ -432,11 +419,13 @@
       if (miniDrag) {
         miniDrag = false;
         mini.style.transition = '';
-        if (!miniMoved) { mini.style.display = 'none'; panel.style.display = 'flex'; }
+        if (!miniMoved) {
+          mini.style.display = 'none';
+          panel.style.display = 'flex';
+        }
       }
     });
 
-    // MINIMIZE
     document.getElementById('ss-btn-minimize').addEventListener('click', function() {
       panel.style.display = 'none';
       mini.style.display = 'block';
@@ -446,7 +435,6 @@
       mini.style.right = 'auto';
     });
 
-    // COLLAPSE
     var collapsed = false;
     document.getElementById('ss-btn-resize').addEventListener('click', function() {
       collapsed = !collapsed;
@@ -454,16 +442,16 @@
       document.getElementById('ss-btn-resize').textContent = collapsed ? '^' : 'v';
     });
 
-    // BUTTONS
     document.getElementById('ss-parse-btn').addEventListener('click', parseInput);
     document.getElementById('ss-edit-btn').addEventListener('click', function() {
       document.getElementById('ss-paste-section').style.display = 'block';
       document.getElementById('ss-preview-section').style.display = 'none';
     });
     document.getElementById('ss-create-btn').addEventListener('click', runFullFlow);
-    document.getElementById('ss-fill-only-btn').addEventListener('click', function() { stepFillForm(); });
+    document.getElementById('ss-fill-only-btn').addEventListener('click', function() {
+      stepFillForm();
+    });
 
-    // DEBUG INSPECTOR
     document.getElementById('ss-inspect-btn').addEventListener('click', function() {
       log('<strong>[INSPECT] Scanning form fields...</strong>', true);
       var allTestIds = document.querySelectorAll('[data-testid]');
@@ -482,7 +470,9 @@
           }
         }
       }
-      if (!found) log('[WARN] No matching data-testid found.');
+      if (!found) {
+        log('[WARN] No matching data-testid found.');
+      }
       log('<br><strong>[LABELS]</strong>');
       var labels = document.querySelectorAll('label, [class*="label"], [class*="Label"]');
       for (var j = 0; j < labels.length; j++) {
@@ -497,20 +487,22 @@
     });
 
     var saved = localStorage.getItem('ss-last-input');
-    if (saved) document.getElementById('ss-input').value = saved;
+    if (saved) {
+      document.getElementById('ss-input').value = saved;
+    }
   }
 
-  // ============================================================
-  // PARSE
-  // ============================================================
   function parseInput() {
     var raw = document.getElementById('ss-input').value.trim();
-    if (!raw) { alert('Please paste your case info first!'); return; }
+    if (!raw) {
+      alert('Please paste your case info first!');
+      return;
+    }
     localStorage.setItem('ss-last-input', raw);
     parsedData = {};
     var lines = raw.split('\n');
-    for (var li = 0; li < lines.length; li++) {
-      var line = lines[li].trim();
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
       if (!line || line.startsWith('===')) continue;
       for (var pi = 0; pi < PARSE_MAP.length; pi++) {
         var pm = PARSE_MAP[pi];
@@ -518,7 +510,9 @@
           var value = line.substring(pm.pattern.length).replace(/^[\s:;\uFF1A\uFF1B]+/, '').trim();
           value = cleanValue(value);
           if (value) {
-            if (!parsedData[pm.key]) parsedData[pm.key] = value;
+            if (!parsedData[pm.key]) {
+              parsedData[pm.key] = value;
+            }
           }
           break;
         }
@@ -534,7 +528,9 @@
     for (var i = 0; i < IGNORE_VALUES.length; i++) {
       if (lower.indexOf(IGNORE_VALUES[i].toLowerCase()) !== -1) return '';
     }
-    if (val.indexOf('  ') !== -1) val = val.split(/\s{2,}/)[0].trim();
+    if (val.indexOf('  ') !== -1) {
+      val = val.split(/\s{2,}/)[0].trim();
+    }
     return val;
   }
 
@@ -569,9 +565,6 @@
     document.getElementById('ss-preview-section').style.display = 'block';
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
   function log(msg, reset) {
     var el = document.getElementById('ss-log');
     el.style.display = 'block';
@@ -588,15 +581,14 @@
     }
   }
 
-  function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+  function delay(ms) {
+    return new Promise(function(r) { setTimeout(r, ms); });
+  }
 
   function normalize(str) {
     return str.toLowerCase().replace(/[\s_\-]+/g, '');
   }
 
-  // ============================================================
-  // CATEGORY RESOLUTION
-  // ============================================================
   function smartSplit(raw) {
     if (!raw) return [];
     var delimiter = raw.indexOf(';') !== -1 ? ';' : ',';
@@ -613,7 +605,6 @@
       var valLower = val.toLowerCase();
       var matched = false;
 
-      // Check 1: Already a category name
       for (var c = 0; c < categoryNames.length; c++) {
         if (categoryNames[c].toLowerCase() === valLower) {
           resolved[categoryNames[c]] = true;
@@ -623,7 +614,6 @@
       }
       if (matched) continue;
 
-      // Check 2: Exact lever lookup
       if (LEVER_TO_CATEGORY[valLower]) {
         var cats = LEVER_TO_CATEGORY[valLower];
         for (var j = 0; j < cats.length; j++) {
@@ -633,7 +623,6 @@
       }
       if (matched) continue;
 
-      // Check 3: Fuzzy lever match
       var leverKeys = Object.keys(LEVER_TO_CATEGORY);
       for (var k = 0; k < leverKeys.length; k++) {
         if (leverKeys[k].indexOf(valLower) !== -1 || valLower.indexOf(leverKeys[k]) !== -1) {
@@ -647,7 +636,6 @@
       }
       if (matched) continue;
 
-      // Check 4: Fuzzy category name match
       for (var c2 = 0; c2 < categoryNames.length; c2++) {
         var catLower = categoryNames[c2].toLowerCase();
         if (catLower.indexOf(valLower) !== -1 || valLower.indexOf(catLower) !== -1) {
@@ -665,16 +653,17 @@
     return Object.keys(resolved);
   }
 
-  // ============================================================
-  // FIND ELEMENT
-  // ============================================================
   function findElement(field) {
     var el = document.querySelector(field.selector);
     if (el) return el;
 
     if (field.altSelectors && field.altSelectors.length) {
       for (var a = 0; a < field.altSelectors.length; a++) {
-        try { el = document.querySelector(field.altSelectors[a]); } catch (e) { continue; }
+        try {
+          el = document.querySelector(field.altSelectors[a]);
+        } catch (e) {
+          continue;
+        }
         if (el) {
           log('  > <span style="color:#4fc3f7;">' + field.key + '</span>: found via alt selector');
           return el;
@@ -692,7 +681,7 @@
         if (parent) {
           el = parent.querySelector('input, textarea, select, button, [role="combobox"], [role="listbox"]');
           if (el) {
-            log('  > <span style="color:#4fc3f7;">' + field.key + '</span>: found via label search');
+            log('  > <span style="color:#4fc3f7;">' + field.key + '</span>: found via label');
             return el;
           }
         }
@@ -721,9 +710,6 @@
     return null;
   }
 
-  // ============================================================
-  // FILL TEXT
-  // ============================================================
   function fillTextInput(el, value) {
     try {
       if (el.getAttribute('contenteditable') === 'true' || el.isContentEditable) {
@@ -755,14 +741,21 @@
             el.dispatchEvent(new Event('input', { bubbles: true }));
             el.dispatchEvent(new Event('change', { bubbles: true }));
             return true;
-          } catch (e) { return false; }
+          } catch (e) {
+            return false;
+          }
         }
       }
-      el.focus(); el.click();
+      el.focus();
+      el.click();
       var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
       var descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
       var setter = descriptor ? descriptor.set : null;
-      if (setter) setter.call(el, value); else el.value = value;
+      if (setter) {
+        setter.call(el, value);
+      } else {
+        el.value = value;
+      }
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
       el.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -773,9 +766,38 @@
     }
   }
 
-  // ============================================================
-  // DROPDOWN HELPERS
-  // ============================================================
+  function collectDropdownOptions() {
+    var sels = [
+      '[role="option"]',
+      '[role="menuitem"]',
+      '[role="menuitemradio"]',
+      '[role="menuitemcheckbox"]',
+      '[class*="option"]:not([class*="option-group"])',
+      '[class*="menu-item"]',
+      '[class*="MenuItem"]',
+      '[class*="dropdown"] li',
+      '[class*="select"] li',
+      '[class*="listbox"] li',
+      '[class*="Dropdown"] li',
+      'ul[role="listbox"] > li',
+      '[data-testid*="option"]'
+    ];
+    var seen = new Set();
+    var allOpts = [];
+    for (var s = 0; s < sels.length; s++) {
+      var opts = document.querySelectorAll(sels[s]);
+      for (var o = 0; o < opts.length; o++) {
+        if (seen.has(opts[o])) continue;
+        seen.add(opts[o]);
+        var r = opts[o].getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          allOpts.push(opts[o]);
+        }
+      }
+    }
+    return allOpts;
+  }
+
   async function openDropdownMenu(clickTarget) {
     clickTarget.click();
     await delay(CFG.DROPDOWN_WAIT);
@@ -783,9 +805,7 @@
     if (opts.length > 0) return opts;
 
     clickTarget.focus();
-    clickTarget.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'ArrowDown', code: 'ArrowDown', bubbles: true
-    }));
+    clickTarget.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true }));
     await delay(CFG.DROPDOWN_WAIT);
     opts = collectDropdownOptions();
     if (opts.length > 0) return opts;
@@ -797,53 +817,25 @@
     return collectDropdownOptions();
   }
 
-  function collectDropdownOptions() {
-    var sels = [
-      '[role="option"]', '[role="menuitem"]', '[role="menuitemradio"]',
-      '[role="menuitemcheckbox"]',
-      '[class*="option"]:not([class*="option-group"])',
-      '[class*="menu-item"]', '[class*="MenuItem"]',
-      '[class*="dropdown"] li', '[class*="select"] li',
-      '[class*="listbox"] li', '[class*="Dropdown"] li',
-      'ul[role="listbox"] > li', '[data-testid*="option"]'
-    ];
-    var seen = new Set();
-    var allOpts = [];
-    for (var s = 0; s < sels.length; s++) {
-      var opts = document.querySelectorAll(sels[s]);
-      for (var o = 0; o < opts.length; o++) {
-        if (seen.has(opts[o])) continue;
-        seen.add(opts[o]);
-        var r = opts[o].getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) allOpts.push(opts[o]);
-      }
-    }
-    return allOpts;
-  }
-
   function findDropdownMatch(allOpts, lv) {
-    for (var i = 0; i < allOpts.length; i++) {
+    var i;
+    for (i = 0; i < allOpts.length; i++) {
       if (allOpts[i].textContent.trim().toLowerCase() === lv) return allOpts[i];
     }
-    for (var i2 = 0; i2 < allOpts.length; i2++) {
-      if (allOpts[i2].textContent.trim().toLowerCase().startsWith(lv)) return allOpts[i2];
+    for (i = 0; i < allOpts.length; i++) {
+      if (allOpts[i].textContent.trim().toLowerCase().startsWith(lv)) return allOpts[i];
     }
-    for (var i3 = 0; i3 < allOpts.length; i3++) {
-      if (allOpts[i3].textContent.trim().toLowerCase().indexOf(lv) !== -1) return allOpts[i3];
+    for (i = 0; i < allOpts.length; i++) {
+      if (allOpts[i].textContent.trim().toLowerCase().indexOf(lv) !== -1) return allOpts[i];
     }
     return null;
   }
 
-  // ============================================================
-  // FILL DROPDOWN
-  // ============================================================
   async function fillDropdown(buttonEl, value) {
     try {
       var clickTarget = buttonEl;
       if (buttonEl.tagName !== 'BUTTON' && buttonEl.tagName !== 'SELECT') {
-        var inner = buttonEl.querySelector(
-          'button, [role="combobox"], [role="button"], [class*="trigger"], [class*="select"], [class*="dropdown"]'
-        );
+        var inner = buttonEl.querySelector('button, [role="combobox"], [role="button"], [class*="trigger"], [class*="select"], [class*="dropdown"]');
         if (inner) clickTarget = inner;
       }
 
@@ -868,9 +860,7 @@
       if (match) { match.click(); await delay(300); return true; }
 
       if (allOpts.length > 0) {
-        var available = allOpts.slice(0, 8).map(function(o) {
-          return '"' + o.textContent.trim().substring(0, 40) + '"';
-        }).join(', ');
+        var available = allOpts.slice(0, 8).map(function(o) { return '"' + o.textContent.trim().substring(0, 40) + '"'; }).join(', ');
         log('  [WARN] <span style="color:#ffd740;">Available: ' + available + '</span>');
         log('  [WARN] <span style="color:#ffd740;">Looking for: "' + value + '"</span>');
       } else {
@@ -887,40 +877,24 @@
     }
   }
 
-  // ============================================================
-  // MULTISELECT HELPERS
-  // ============================================================
-  async function openMultiSelectMenu(clickTarget) {
-    clickTarget.click();
-    await delay(CFG.DROPDOWN_WAIT);
-    var opts = collectMultiSelectOptions();
-    if (opts.length > 0) return opts;
-
-    clickTarget.focus();
-    clickTarget.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'ArrowDown', code: 'ArrowDown', bubbles: true
-    }));
-    await delay(CFG.DROPDOWN_WAIT);
-    opts = collectMultiSelectOptions();
-    if (opts.length > 0) return opts;
-
-    clickTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    await delay(150);
-    clickTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    await delay(CFG.DROPDOWN_WAIT);
-    return collectMultiSelectOptions();
-  }
-
   function collectMultiSelectOptions() {
     var sels = [
-      '[role="option"]', '[role="menuitem"]', '[role="menuitemcheckbox"]',
-      '[role="menuitemradio"]', '[role="checkbox"]',
+      '[role="option"]',
+      '[role="menuitem"]',
+      '[role="menuitemcheckbox"]',
+      '[role="menuitemradio"]',
+      '[role="checkbox"]',
       '[class*="option"]:not([class*="option-group"]):not([class*="options-container"])',
-      '[class*="menu-item"]', '[class*="MenuItem"]',
-      '[class*="multi-select"] li', '[class*="multiselect"] li',
-      '[class*="MultiSelect"] li', '[class*="checkbox-item"]',
-      '[class*="CheckboxItem"]', '[data-testid*="option"]',
-      'ul[role="listbox"] > li', '[class*="dropdown"] li',
+      '[class*="menu-item"]',
+      '[class*="MenuItem"]',
+      '[class*="multi-select"] li',
+      '[class*="multiselect"] li',
+      '[class*="MultiSelect"] li',
+      '[class*="checkbox-item"]',
+      '[class*="CheckboxItem"]',
+      '[data-testid*="option"]',
+      'ul[role="listbox"] > li',
+      '[class*="dropdown"] li',
       '[class*="Dropdown"] li'
     ];
     var seen = new Set();
@@ -939,25 +913,45 @@
     return results;
   }
 
+  async function openMultiSelectMenu(clickTarget) {
+    clickTarget.click();
+    await delay(CFG.DROPDOWN_WAIT);
+    var opts = collectMultiSelectOptions();
+    if (opts.length > 0) return opts;
+
+    clickTarget.focus();
+    clickTarget.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true }));
+    await delay(CFG.DROPDOWN_WAIT);
+    opts = collectMultiSelectOptions();
+    if (opts.length > 0) return opts;
+
+    clickTarget.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await delay(150);
+    clickTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await delay(CFG.DROPDOWN_WAIT);
+    return collectMultiSelectOptions();
+  }
+
   function findBestMatch(allOpts, target) {
     var lt = target.toLowerCase().trim();
+    var i;
 
-    for (var i = 0; i < allOpts.length; i++) {
+    for (i = 0; i < allOpts.length; i++) {
       if (allOpts[i].text.toLowerCase().trim() === lt) return allOpts[i];
     }
 
     if (lt.length > 3) {
-      for (var j = 0; j < allOpts.length; j++) {
-        if (allOpts[j].text.toLowerCase().trim().startsWith(lt)) return allOpts[j];
+      for (i = 0; i < allOpts.length; i++) {
+        if (allOpts[i].text.toLowerCase().trim().startsWith(lt)) return allOpts[i];
       }
     }
 
     if (lt.length > 3) {
       var containsMatches = [];
-      for (var k = 0; k < allOpts.length; k++) {
-        var optText = allOpts[k].text.toLowerCase().trim();
+      for (i = 0; i < allOpts.length; i++) {
+        var optText = allOpts[i].text.toLowerCase().trim();
         if (optText.indexOf(lt) !== -1) {
-          containsMatches.push({ opt: allOpts[k], score: Math.abs(optText.length - lt.length) });
+          containsMatches.push({ opt: allOpts[i], score: Math.abs(optText.length - lt.length) });
         }
       }
       if (containsMatches.length > 0) {
@@ -966,9 +960,9 @@
       }
     }
 
-    for (var m = 0; m < allOpts.length; m++) {
-      var optText2 = allOpts[m].text.toLowerCase().trim();
-      if (lt.indexOf(optText2) !== -1 && optText2.length > 3) return allOpts[m];
+    for (i = 0; i < allOpts.length; i++) {
+      var optText2 = allOpts[i].text.toLowerCase().trim();
+      if (lt.indexOf(optText2) !== -1 && optText2.length > 3) return allOpts[i];
     }
 
     return null;
@@ -987,16 +981,10 @@
 
   function logAvailableOptions(allOpts) {
     if (allOpts.length === 0) return;
-    var preview = allOpts.slice(0, 10).map(function(o) {
-      return '"' + o.text.substring(0, 50) + '"';
-    }).join(', ');
-    log('  [LIST] <span style="color:#888;">Available: ' + preview +
-      (allOpts.length > 10 ? ' ... +' + (allOpts.length - 10) + ' more' : '') + '</span>');
+    var preview = allOpts.slice(0, 10).map(function(o) { return '"' + o.text.substring(0, 50) + '"'; }).join(', ');
+    log('  [LIST] <span style="color:#888;">Available: ' + preview + (allOpts.length > 10 ? ' ... +' + (allOpts.length - 10) + ' more' : '') + '</span>');
   }
 
-  // ============================================================
-  // FILL MULTISELECT
-  // ============================================================
   async function fillMultiSelect(buttonEl, value) {
     try {
       var rawValues = smartSplit(value);
@@ -1005,13 +993,11 @@
         return false;
       }
 
-      log('  [INPUT] <span style="color:#888;">Raw: [' +
-        rawValues.map(function(v) { return '"' + v + '"'; }).join(', ') + ']</span>');
+      log('  [INPUT] <span style="color:#888;">Raw: [' + rawValues.map(function(v) { return '"' + v + '"'; }).join(', ') + ']</span>');
 
       var categories = resolveToCategories(rawValues);
 
-      log('  [RESOLVED] <span style="color:#4fc3f7;">Targets: [' +
-        categories.map(function(v) { return '"' + v + '"'; }).join(', ') + ']</span>');
+      log('  [RESOLVED] <span style="color:#4fc3f7;">Targets: [' + categories.map(function(v) { return '"' + v + '"'; }).join(', ') + ']</span>');
 
       if (!categories.length) {
         log('  [FAIL] <span style="color:#ff6b6b;">No categories resolved</span>');
@@ -1020,10 +1006,7 @@
 
       var clickTarget = buttonEl;
       if (buttonEl.tagName !== 'BUTTON' && buttonEl.tagName !== 'SELECT') {
-        var inner = buttonEl.querySelector(
-          'button, [role="combobox"], [role="button"], [role="listbox"], ' +
-          '[class*="trigger"], [class*="select"], [class*="dropdown"]'
-        );
+        var inner = buttonEl.querySelector('button, [role="combobox"], [role="button"], [role="listbox"], [class*="trigger"], [class*="select"], [class*="dropdown"]');
         if (inner) clickTarget = inner;
       }
 
@@ -1040,7 +1023,8 @@
 
       log('  [SCAN] <span style="color:#888;">' + allOpts.length + ' options available</span>');
 
-      var ok = 0, missed = [];
+      var ok = 0;
+      var missed = [];
 
       for (var vi = 0; vi < categories.length; vi++) {
         var target = categories[vi];
@@ -1071,16 +1055,13 @@
         }
       }
 
-      document.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'Escape', code: 'Escape', bubbles: true
-      }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
       await delay(200);
       document.body.click();
       await delay(200);
 
       if (missed.length > 0) {
-        log('  [WARN] <span style="color:#ffd740;">Unmatched: ' +
-          missed.map(function(m) { return '"' + m + '"'; }).join(', ') + '</span>');
+        log('  [WARN] <span style="color:#ffd740;">Unmatched: ' + missed.map(function(m) { return '"' + m + '"'; }).join(', ') + '</span>');
         logAvailableOptions(allOpts);
       }
 
@@ -1092,54 +1073,80 @@
     }
   }
 
-  // ============================================================
-  // STEPS
-  // ============================================================
   async function stepNewCase() {
     setProgress(0);
     log('<strong>[STEP] Opening New Case...</strong>', true);
     if (document.querySelector('[data-testid="form-submit"]')) {
-      log('[INFO] Form already open.'); return true;
+      log('[INFO] Form already open.');
+      return true;
     }
     var btn = null;
     var buttons = document.querySelectorAll('button');
     for (var b = 0; b < buttons.length; b++) {
-      if (buttons[b].textContent.trim() === 'New Case') { btn = buttons[b]; break; }
+      if (buttons[b].textContent.trim() === 'New Case') {
+        btn = buttons[b];
+        break;
+      }
     }
-    if (!btn) { log('[FAIL] "New Case" not found.'); return false; }
-    btn.click(); log('[OK] Clicked. Waiting...');
+    if (!btn) {
+      log('[FAIL] "New Case" not found.');
+      return false;
+    }
+    btn.click();
+    log('[OK] Clicked. Waiting...');
     for (var i = 0; i < 10; i++) {
       await delay(500);
-      if (document.querySelector('[data-testid="form-submit"]')) { log('[OK] Form loaded.'); return true; }
+      if (document.querySelector('[data-testid="form-submit"]')) {
+        log('[OK] Form loaded.');
+        return true;
+      }
     }
-    log('[WAIT] Still loading...'); return true;
+    log('[WAIT] Still loading...');
+    return true;
   }
 
   async function stepSelectType() {
     setProgress(1);
     log('<strong>[STEP] Checking record type...</strong>');
     var btn = document.querySelector('#caseRecordTypeDropdown,[data-testid="case-record-type-dropdown"]');
-    if (!btn) { log('[FAIL] Not found.'); return false; }
+    if (!btn) {
+      log('[FAIL] Not found.');
+      return false;
+    }
     if (btn.textContent.trim().indexOf('SSPA ABOS Optimization Case') !== -1) {
-      log('[OK] Already selected.'); return true;
+      log('[OK] Already selected.');
+      return true;
     }
     var ok = await fillDropdown(btn, 'SSPA ABOS Optimization Case');
-    if (ok) { log('[OK] Selected.'); await delay(CFG.STEP_DELAY); return true; }
-    log('[FAIL] Could not select.'); return false;
+    if (ok) {
+      log('[OK] Selected.');
+      await delay(CFG.STEP_DELAY);
+      return true;
+    }
+    log('[FAIL] Could not select.');
+    return false;
   }
 
   async function stepFillForm() {
     setProgress(2);
-    if (!Object.keys(parsedData).length) { log('[FAIL] No data! Parse first.', true); return; }
+    if (!Object.keys(parsedData).length) {
+      log('[FAIL] No data! Parse first.', true);
+      return;
+    }
     log('<strong>[STEP] Filling form...</strong>');
     log('--------------------------------');
-    var filled = 0, failed = 0, skipped = 0;
+    var filled = 0;
+    var failed = 0;
+    var skipped = 0;
     var failedFields = [];
 
     for (var fi = 0; fi < DOM_MAP.length; fi++) {
       var f = DOM_MAP[fi];
       var val = parsedData[f.key];
-      if (!val) { skipped++; continue; }
+      if (!val) {
+        skipped++;
+        continue;
+      }
       await delay(CFG.FILL_DELAY);
       var el = findElement(f);
       if (!el) {
@@ -1156,9 +1163,13 @@
         continue;
       }
       var ok = false;
-      if (f.type === 'text' || f.type === 'textarea') ok = fillTextInput(el, val);
-      else if (f.type === 'dropdown') ok = await fillDropdown(el, val);
-      else if (f.type === 'multiselect') ok = await fillMultiSelect(el, val);
+      if (f.type === 'text' || f.type === 'textarea') {
+        ok = fillTextInput(el, val);
+      } else if (f.type === 'dropdown') {
+        ok = await fillDropdown(el, val);
+      } else if (f.type === 'multiselect') {
+        ok = await fillMultiSelect(el, val);
+      }
 
       if (ok) {
         var s = val.length > 30 ? val.substring(0, 30) + '...' : val;
@@ -1173,14 +1184,13 @@
 
     log('--------------------------------');
     log('<strong>[RESULT] OK:' + filled + ' | FAIL:' + failed + ' | SKIP:' + skipped + '</strong>');
-    if (failed) log('<em style="color:#ff9900;">Failed fields need manual input</em>');
+    if (failed) {
+      log('<em style="color:#ff9900;">Failed fields need manual input</em>');
+    }
     showManualReminder(failedFields);
     setProgress(3);
   }
 
-  // ============================================================
-  // POST-FILL MANUAL REMINDER
-  // ============================================================
   function showManualReminder(failedFields) {
     if (!failedFields) failedFields = [];
     var manualItems = [];
@@ -1203,7 +1213,7 @@
     }
 
     if (manualItems.length === 0) {
-      log('<div style="margin-top:6px; padding:10px 12px; background:#00a651; color:#fff; border-radius:8px; font-size:12px;">' +
+      log('<div style="margin-top:6px;padding:10px 12px;background:#00a651;color:#fff;border-radius:8px;font-size:12px;">' +
         '<strong>[OK] All fields filled successfully!</strong><br>' +
         '<span>Please review and click Submit.</span></div>');
       return;
@@ -1214,15 +1224,18 @@
       items += '<li>' + manualItems[j] + '</li>';
     }
 
-    log('<div style="margin-top:6px; padding:10px 12px; background:#ff9900; color:#000; border-radius:8px; font-size:12px; line-height:1.7;">' +
+    log('<div style="margin-top:6px;padding:10px 12px;background:#ff9900;color:#000;border-radius:8px;font-size:12px;line-height:1.7;">' +
       '<strong style="font-size:13px;">[!] MANUAL ACTION REQUIRED</strong><br>' +
       '<span>Please manually fill/verify the following before submitting:</span>' +
-      '<ol style="margin:6px 0 4px 18px; padding:0;">' + items + '</ol>' +
+      '<ol style="margin:6px 0 4px 18px;padding:0;">' + items + '</ol>' +
       '<span>After confirming all fields, click <strong>Submit</strong>.</span></div>');
   }
 
   async function runFullFlow() {
-    if (!Object.keys(parsedData).length) { alert('Parse first! (Step 1)'); return; }
+    if (!Object.keys(parsedData).length) {
+      alert('Parse first! (Step 1)');
+      return;
+    }
     var s0 = await stepNewCase();
     if (!s0) return;
     await delay(CFG.STEP_DELAY);
@@ -1233,11 +1246,11 @@
     log('<strong>[DONE] Review the reminder above.</strong>');
   }
 
-  // ============================================================
-  // INIT
-  // ============================================================
   var initCheck = setInterval(function() {
-    if (document.body) { clearInterval(initCheck); createPanel(); }
+    if (document.body) {
+      clearInterval(initCheck);
+      createPanel();
+    }
   }, 1000);
 
 })();
