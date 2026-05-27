@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         SS DVA Case Auto-Fill (LCS)
+// @name         SS Case Log Auto-Filler v5.3
 // @namespace    https://amazon.com/lcs/
 // @version      1.0
 // @description  Auto-fill Salesforce DVA case form with visual feedback
